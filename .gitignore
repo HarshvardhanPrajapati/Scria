@@ -1,0 +1,16 @@
+# Node.js
+node_modules/
+npm-debug.log*
+
+# Environment variables
+.env
+.env.local
+
+# Foundry
+cache/
+out/
+broadcast/
+
+# IDE/OS
+.vscode/
+.DS_Store
