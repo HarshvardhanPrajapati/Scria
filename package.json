@@ -1,0 +1,26 @@
+{
+  "name": "scria",
+  "version": "1.0.0",
+  "main": "file_parser.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/HarshvardhanPrajapati/Scria.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/HarshvardhanPrajapati/Scria/issues"
+  },
+  "homepage": "https://github.com/HarshvardhanPrajapati/Scria#readme",
+  "description": "",
+  "dependencies": {
+    "@google/genai": "^1.21.0",
+    "@google/generative-ai": "^0.24.1",
+    "dotenv": "^17.2.2"
+  }
+}
