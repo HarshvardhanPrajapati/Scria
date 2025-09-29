@@ -3,7 +3,7 @@ pragma solidity ^0.8.13;
 
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
-import "../src/demo_contract.sol"; // Adjust path if your contract is in a different location
+import "../src/Counter.sol"; // Adjust path if your contract is in a different location
 
 contract CounterTest is Test {
     Counter public counter;
@@ -206,7 +206,7 @@ contract CounterTest is Test {
         // In a real contract, this would involve asserting that internal value calculations
         // based on oracles are within expected bounds, or that critical state isn't directly
         // dependent on potentially stale/manipulated prices.
-        assert(true, "Counter contract does not rely on external price feeds, thus immune to price manipulation.");
+        require(true, "Counter contract does not rely on external price feeds, thus immune to price manipulation.");
     }
 
     // DETECTS: Price manipulation attempts through extreme oracle values.
@@ -216,7 +216,7 @@ contract CounterTest is Test {
         // In a real scenario, mock oracle with `manipulatedPrice`.
         // Then call a function that uses the oracle and assert expected outcome or revert.
         // For Counter, there are no price-sensitive operations.
-        assert(true, "Counter contract is not price-sensitive.");
+        require(true, "Counter contract is not price-sensitive.");
     }
 
     // DETECTS: Multi-step price manipulation or flash loan setup.
@@ -226,7 +226,7 @@ contract CounterTest is Test {
         // 2. Attacker calls victim contract, which uses the manipulated price.
         // 3. Attacker reverses manipulation, profits.
         // Counter contract has no such attack surface.
-        assert(true, "Multi-step price manipulation is not applicable to Counter.");
+        require(true, "Multi-step price manipulation is not applicable to Counter.");
     }
 
     //
@@ -251,7 +251,7 @@ contract CounterTest is Test {
         // In a real test, mock a flash loan receiver calling into the contract.
         // Check if `counter.number()` (or any state) can be exploited with large `flashLoanAmount`.
         // For Counter, it cannot.
-        assert(true, "Counter contract is not vulnerable to flash loans.");
+        require(true, "Counter contract is not vulnerable to flash loans.");
     }
 
     // DETECTS: Multi-step flash loan attack.
@@ -279,7 +279,7 @@ contract CounterTest is Test {
     //        and sufficient voting power, respecting timelocks.
     function invariant_GovernanceIntegrity() public {
         // For Counter, it has no governance. This invariant confirms its independence from governance.
-        assert(true, "Counter contract has no governance mechanisms, thus immune to governance attacks.");
+        require(true, "Counter contract has no governance mechanisms, thus immune to governance attacks.");
     }
 
     // DETECTS: Extreme scenarios of voting power or proposal values.
@@ -291,7 +291,7 @@ contract CounterTest is Test {
         // 2. Simulate various voting patterns (high/low votes, different voters).
         // 3. Assert proposal outcome is legitimate.
         // Counter has no governance.
-        assert(true, "Counter contract is not governed.");
+        require(true, "Counter contract is not governed.");
     }
 
     // DETECTS: Multi-step governance manipulation (e.g., acquiring tokens, voting, re-acquiring more, voting again).
@@ -304,7 +304,7 @@ contract CounterTest is Test {
         // 4. Acquire more tokens.
         // 5. Vote again or execute.
         // For Counter, this is not applicable.
-        assert(true, "Multi-step governance attack is not applicable to Counter.");
+        require(true, "Multi-step governance attack is not applicable to Counter.");
     }
 
     //
@@ -319,12 +319,12 @@ contract CounterTest is Test {
         counter.setNumber(1);
         uint256 gasCostSet = initialGas - gasleft();
         // Assert gas cost is below a reasonable limit (e.g., 100,000 for simple ops)
-        assert(gasCostSet < 100_000, "setNumber gas cost too high, potential DoS vector.");
+        require(gasCostSet < 100_000, "setNumber gas cost too high, potential DoS vector.");
 
         initialGas = gasleft();
         counter.increment();
         uint256 gasCostIncrement = initialGas - gasleft();
-        assert(gasCostIncrement < 100_000, "increment gas cost too high, potential DoS vector.");
+        require(gasCostIncrement < 100_000, "increment gas cost too high, potential DoS vector.");
     }
 
     // DETECTS: Extreme parameter values causing excessive gas usage.
@@ -334,14 +334,14 @@ contract CounterTest is Test {
         uint256 initialGas = gasleft();
         counter.setNumber(param); // Setting max uint256 is fine for assignment.
         uint256 gasCostSet = initialGas - gasleft();
-        assert(gasCostSet < 100_000, "setNumber with extreme param gas cost too high.");
+        require(gasCostSet < 100_000, "setNumber with extreme param gas cost too high.");
 
         // Fuzz increment. This should eventually revert due to overflow, not gas.
         counter.setNumber(param % (type(uint256).max / 2)); // Keep number reasonable for fuzzing
         initialGas = gasleft();
         counter.increment();
         uint256 gasCostIncrement = initialGas - gasleft();
-        assert(gasCostIncrement < 100_000, "increment with extreme state gas cost too high.");
+        require(gasCostIncrement < 100_000, "increment with extreme state gas cost too high.");
     }
 
     // DETECTS: Multi-step DoS (e.g., filling storage, repeated calls to expensive functions).
@@ -351,11 +351,11 @@ contract CounterTest is Test {
         // Repeated calls are trivial.
         for (uint256 i = 0; i < 10; i++) { // Small loop for sanity
             counter.increment();
-            assert(gasleft() > 100_000, "Gas exhausted during multi-step operation."); // Check remaining gas
+            require(gasleft() > 100_000, "Gas exhausted during multi-step operation."); // Check remaining gas
         }
         counter.setNumber(1);
         counter.setNumber(2);
-        assert(gasleft() > 100_000, "Gas exhausted during multi-step set.");
+        require(gasleft() > 100_000, "Gas exhausted during multi-step set.");
     }
 
     //
@@ -368,7 +368,7 @@ contract CounterTest is Test {
     // LOGIC: Contract state (`number`) should not be implicitly or explicitly dependent on `block.timestamp`.
     function invariant_TimeManipulationProtection() public {
         // Counter is time-independent. This invariant asserts that.
-        assert(true, "Counter contract does not rely on block.timestamp or block.number.");
+        require(true, "Counter contract does not rely on block.timestamp or block.number.");
     }
 
     // DETECTS: Function behavior when `block.timestamp` is manipulated (e.g., in testing environment).
