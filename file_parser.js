@@ -56,130 +56,69 @@ setTimeout(() => {
     console.log("Generating properties, might take some time");
 }, 3000);
 
-async function llm_script_generator() {
+async function llm_script() {
     const response = await ai.models.generateContent({
         model: "gemini-2.5-flash",
-        contents: `You are an elite smart contract security auditor. Generate comprehensive vulnerability-focused properties for this Solidity contract as Foundry tests.
-        You only have to give the solidity contract without any other thing...the response should start with on //MIT license thingy and not anything else...as your response would be sent to the demo_contract_script.s.sol and your output as it is should be compilable there..i dont even want \`\`\` in the beginning and end...just the code.
-        also dont make any error, last time you were using assert and passing 2 paramenters to it, you should've used require instead
+        contents: `Output only the Solidity contract (starting with // SPDX-License-Identifier: MIT). No extra text, no markdown code formatting.
 
-CONTRACT:
+Below is the smart contract
 ${contract_data}
-
-Generate properties that detect:
-1. Reentrancy attacks - state consistency before/after external calls
-2. Access control flaws - unauthorized function execution  
-3. Integer overflow/underflow - arithmetic operation safety
-4. Price manipulation - oracle and economic exploits
-5. Flash loan attacks - single transaction exploits
-6. Governance attacks - voting and proposal manipulation
-7. DoS attacks - gas limit and resource exhaustion
-8. Time manipulation - block timestamp dependencies
-9. Cross-function vulnerabilities - complex state inconsistencies
-10. Upgrade vulnerabilities - proxy and storage collisions
-
-For each vulnerability category, create:
-- Invariant properties that must always hold
-- Fuzzing tests with extreme parameter values
-- Edge case scenarios that commonly cause exploits
-- Multi-step attack sequence detection
-
-Output format for each property:
-\`\`\`solidity
-// DETECTS: [specific vulnerability]
-// LOGIC: [mathematical relationship being tested]
-function invariant_PropertyName() public {
-    // test implementation
-    assert(condition);
-}
-
-function test_PropertyName_Fuzz(uint256 param) public {
-    vm.assume(param > 0 && param < type(uint256).max);
-    // fuzzing test implementation  
-    assert(condition);
-}
-\`\`\`
-
-Requirements:
-- Every property must target a real vulnerability pattern
-- Properties must be mathematically rigorous and precise
-- Include both positive and negative test cases
-- Test extreme values and boundary conditions
-- Focus on properties that catch subtle exploits
-- Generate comprehensive coverage of all attack vectors
-
-Make the properties so thorough that no vulnerability can escape detection.
-also you should make absolutely 0 misatakes..i literally expect no mistake from your side..so keep that in mind brah`,
+Your task is to create the script for this contract, the deployement script for foundry only..
+after that i'll ask you to write the tests to detect major vulnerabilities, so better keep your script acc so that it can have tests accomodated
+you only have to response the deploying script, 
+for importing the contract, the contract is located at src/demo_contract_staking.sol`
     });
     return response.text;
 }
 
-const script_data = await llm_script_generator();
-
+const script_data = await llm_script();
 const script_dir = path.join(__dirname, 'script');
-let property_name = property.substring(0, property.length - 4);
-const path_to_script = path.join(script_dir, `${property_name}_script.s.sol`);
+let script_file_name = property.substring(0,property.length - 4);
+const path_to_script = path.join(script_dir,`${script_file_name}_script.s.sol`);
 const writeFile = fs.writeFileSync(path_to_script,
     script_data,
     "utf-8"
 );
 
+ async function llm_tests_generator() {
+    const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: `
+Output only the Solidity contract (starting with // SPDX-License-Identifier: MIT). No extra text, no markdown code formatting.
 
-for (let i = 0; i < 3; i++) {
-    //run test on the written file
-    const forge_args = [
-        "test",
-        "--match-path",
-        `scripts/${property_name}_script.s.sol`,
-        "-vvv"
-    ];
+// Below is the smart contract to be tested, it is located at src/${property}
+// ${contract_data}
+And here is the script that is used to deploy the contract stored at script/${script_file_name}_script.s.sol
 
-    const result = spawnSync("forge", forge_args, { encoding: "utf-8" });
-
-    const properties_content = fs.readFileSync(path_to_script, "utf-8");
-
-    async function llm_error_resolve() {
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: `
-            You are an elite Solidity engineer and smart contract auditor. 
-    Your task is to **rewrite the entire Solidity script** so that it compiles and passes all Foundry tests, while maintaining all previous properties and features.
-    
-    INPUTS:
-    - contract properties content ${properties_content}
-    - Original contract content: ${contract_data}
-    - Forge test stdout: ${result.stdout}
-    - Forge test stderr: ${result.stderr}
-    - Forge exit code: ${result.status}
-    
-    TASKS:
-    1. Resolve all compilation and runtime errors that appear in the Forge output.
-    2. Ensure that there are **no remaining syntax or semantic errors** in the contract or test script.
-    3. Keep all vulnerability-focused properties generated previously (reentrancy, access control, integer overflow/underflow, price manipulation, flash loans, governance, DoS, time manipulation, cross-function issues, upgrade/proxy issues).
-    4. Apply corrections where needed, including fixes to asserts, requires, fuzzing tests, invariants, and boundary cases.
-    5. Optimize for **minimal errors**, correctness, and Solidity best practices.
-    
-    REQUIREMENTS:
-    - Return **only** the complete, corrected Solidity code.
-    - Start with the SPDX license header
-    - Do not add explanations, comments, or markdown code fences.
-    - Ensure the code is immediately compilable and ready to pass "forge test" when run in terminal using foundry.
-    
-    CONSTRAINT:
-    - Treat the Forge output as authoritative: any error reported must be fixed.
-    - Also check for any overlooked syntactic or logical issues not reported by Forge, and fix them preemptively.
-    
-    OUTPUT:
-    - The full corrected contract/test script content that can overwrite scripts/c_script.s.sol directly.
-            `
-        });
-        return response.text;
-    };
-
-    const error_resolved_responst = await llm_error_resolve();
-    const newwriteFile = fs.writeFileSync(path_to_script,
-        script_data,
-        "utf-8"
-    );
+// For each of the following major vulnerability categories, generate a suite of property tests for Foundry:
+//
+// 1. Reentrancy: Test that state changes are finalized before external calls, preventing recursive withdrawals.
+// 2. Access Control: Verify that only authorized addresses can call privileged functions.
+// 3. Integer Overflow/Underflow: Fuzz test arithmetic operations with large and small numbers to ensure they don't wrap around.
+// 4. Price Manipulation: Test that the contract's logic is not vulnerable to sudden, arbitrary price changes from a single oracle.
+// 5. DoS/Resource Exhaustion: Fuzz test functions with large loops or dynamic arrays to ensure they don't exceed the block gas limit.
+// 6. Timestamp Manipulation: Test that time-sensitive functions do not rely on block.timestamp.
+// 7. Cross-Function/State Consistency: Test complex multi-step transactions to ensure the contract's state remains consistent.
+// 8. Upgrades/Proxy Pattern Flaws: Test that storage slots and state variables are not corrupted during an upgrade.
+//
+// Instructions:
+// - Create a single Foundry test file.
+// - Import forge-std/Test.sol and the contract being tested.
+// - Use a setUp() function to deploy a new instance of the contract before each test.
+// - For Fuzz tests, use a uint256 parameter in the function signature. For non-fuzz tests, you may use a vm.prank and vm.deal to set up specific test conditions.
+// - Ensure all tests include require statements to check for expected conditions or vm.expectRevert for negative scenarios.
+// - Functions must be internal or public to be callable within the test contract. Do not make them external.
+// - The output should be a single, compilable Solidity file with 5-15 tests. Each test should target a realistic exploit scenario for the specified vulnerability categories. The code should be clean, error-free, and directly usable in a Foundry project.
+        `,
+    });
+    return response.text;
 }
 
+const test_data = await llm_tests_generator();
+const test_dir = path.join(__dirname,'test');
+let test_file_name = property.substring(0, property.length - 4);
+const path_to_test = path.join(test_dir, `${test_file_name}.t.sol`);
+const writeTestFile = fs.writeFileSync(path_to_test,
+    test_data,
+    "utf-8"
+);
