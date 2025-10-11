@@ -8,6 +8,13 @@ import dotenv from "dotenv";
 import { error } from "console";
 dotenv.config({ silent: true });
 
+//defining colours for terminal output
+const RED = '\x1b[31m';
+const YELLOW = '\x1b[33m';
+const GREEN = '\x1b[32m';
+const BOLD = '\x1b[1m';
+const RESET = '\x1b[0m';
+
 // taking the command
 const args = process.argv.slice(2);
 
@@ -48,7 +55,6 @@ const ai = new GoogleGenAI(process.env.GEMINI_API_KEY);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-
 async function main() {
 
   //loading contract data and paths
@@ -58,12 +64,12 @@ async function main() {
   const lines = contract_data.split('\n');
   const numberOflines = lines.length;
   if(numberOflines > 100){
-    console.log("Contract exceeds the limit size (100 lines)");
+    console.log(RED + "Contract exceeds the limit size (100 lines)" + RESET);
     process.exit(1);
   }
 
 
-  console.log("Contract loaded successfully");
+  console.log(GREEN + BOLD + "Contract loaded successfully" + RESET);
   console.log("Generating Script");
 
   //function for generating script
@@ -141,7 +147,10 @@ And here is the error that occured during its execution, this means there can be
 here is the current error
 ${error_that_occured}
 
+here is the path to the contract src/${property}
+
 Output only the Solidity code for the test contract, starting with the SPDX license identifier. Do not include any extra text or markdown formatting.
+Also dont start the output with \`\`\` and end with this..the first thing in your response should only be SPDX-
 `,
     });
     return response.text;
@@ -160,7 +169,7 @@ Output only the Solidity code for the test contract, starting with the SPDX lice
   for (let i = 0; i < 3; i++) {
     const compileResult = spawnSync('forge', ['compile'], { stdio: 'pipe' });
     if (compileResult.status !== 0) {
-      console.error("Compilation failed");
+      console.error(RED + "Compilation failed"+ RESET);
       console.log("Updating tests and rerunning the pipeline");
       const updated_tests = await llm_error_resolver(compileResult.stderr.toString());
       //console.log(compileResult.stderr.toString());
@@ -168,13 +177,16 @@ Output only the Solidity code for the test contract, starting with the SPDX lice
     }
   }
 
-  console.log("Compilation successful, running tests");
+  console.log(GREEN + "Compilation successful, running tests" + RESET);
 
   //running tests
   const relative_path_to_test = path.join('test', `${base_file_name}.t.sol`);
   const testResult = spawnSync('forge', ['test', '--match-path', relative_path_to_test], { stdio: 'pipe' });
   const testOutput = testResult.stdout.toString() + testResult.stderr.toString();
-
+  if(testResult.stderr.toString() == "") {
+    console.log(GREEN + "No significant vulnerability detected" + RESET);
+    process
+  }
 
   //function to analyze vulnerabilites
   async function llm_vulnerability_analyzer(test_output, test_data) {
@@ -211,7 +223,7 @@ also you dont have to wrtite silly vulnerabilities like error handling or smth..
 
   //printing vulnerability report
   const vulnerabilityReport = await llm_vulnerability_analyzer(testOutput, test_data);
-  console.log("\n--- Vulnerability Report ---");
+  console.log(RED + BOLD + "\n--- Potential Vulnerabilites ---" + RESET);
   console.log(vulnerabilityReport);
 }
 
