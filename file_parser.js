@@ -1,28 +1,29 @@
 #!/usr/bin/env node
 import { fileURLToPath } from "url";
-import { GoogleGenAI } from "@google/genai";
-import { spawnSync } from "child_process"; //to run the cli commands to forge test the script
+import { ComputeTokensResponse, GoogleGenAI } from "@google/genai";
+import { spawnSync } from "child_process";
 import fs from "fs";
 import path from "path";
 import dotenv from "dotenv";
+import { error } from "console";
 dotenv.config({ silent: true });
 
-
-//taking the command
+// taking the command
 const args = process.argv.slice(2);
 
 let generate = false;
 let property = null;
 
-//parse flags
+
+// parsing the terminal command
 for (let i = 0; i < args.length; i++) {
-    if (args[i] === "--gen") {
-        generate = true;
-    } else if (args[i] === "--property" && args[i + 1]) {
-        property = args[i + 1];
-        i++;
-    } else if(args[i] === "--help") {
-        console.log(`
+  if (args[i] === "--gen") {
+    generate = true;
+  } else if (args[i] === "--property" && args[i + 1]) {
+    property = args[i + 1];
+    i++;
+  } else if (args[i] === "--help") {
+    console.log(`
 Usage: $ scria [options]
             
 Options:
@@ -32,93 +33,186 @@ Options:
 --show --vulnerabilities    Return possible vulnerabilities
 --show --test-report        Return test cases report
         `);
-        process.exit(0);
-    } else {
-        console.log(`Invalid command: ${args[i]}
+    process.exit(0);
+  } else {
+    console.log(`Invalid command: ${args[i]}
 Type "scria --help" for supported commands`);
-            process.exit(1);
-    }
+    process.exit(1);
+  }
 }
 
+
+//creating the instance for the AI model
 const ai = new GoogleGenAI(process.env.GEMINI_API_KEY);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const path_to_contract = path.join(__dirname, 'src', property);
-const contract_data = fs.readFileSync(path_to_contract, "utf-8");
 
-setTimeout(() => {
-    console.log("Contract loaded successfully");
-}, 1000);
+async function main() {
 
-setTimeout(() => {
-    console.log("Generating properties, might take some time");
-}, 3000);
+  //loading contract data and paths
+  const path_to_contract = path.join(__dirname, 'src', property);
+  const contract_data = fs.readFileSync(path_to_contract, "utf-8");
+  const base_file_name = path.parse(property).name;
+  const lines = contract_data.split('\n');
+  const numberOflines = lines.length;
+  if(numberOflines > 100){
+    console.log("Contract exceeds the limit size (100 lines)");
+    process.exit(1);
+  }
 
-async function llm_script() {
+
+  console.log("Contract loaded successfully");
+  console.log("Generating Script");
+
+  //function for generating script
+  async function llm_script() {
     const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: `Output only the Solidity contract (starting with // SPDX-License-Identifier: MIT). No extra text, no markdown code formatting.
+      model: "gemini-2.5-flash",
+      contents: `Output only the Solidity contract (starting with // SPDX-License-Identifier: MIT). No extra text, no markdown code formatting.
 
 Below is the smart contract
 ${contract_data}
 Your task is to create the script for this contract, the deployement script for foundry only..
 after that i'll ask you to write the tests to detect major vulnerabilities, so better keep your script acc so that it can have tests accomodated
 you only have to response the deploying script, 
-for importing the contract, the contract is located at src/demo_contract_staking.sol`
+for importing the contract, the contract is located at src/${property}`
     });
     return response.text;
-}
+  }
 
-const script_data = await llm_script();
-const script_dir = path.join(__dirname, 'script');
-let script_file_name = property.substring(0,property.length - 4);
-const path_to_script = path.join(script_dir,`${script_file_name}_script.s.sol`);
-const writeFile = fs.writeFileSync(path_to_script,
-    script_data,
-    "utf-8"
-);
+  //writing the script
+  const script_data = await llm_script();
+  const script_dir = path.join(__dirname, 'script');
+  const path_to_script = path.join(script_dir, `${base_file_name}_script.s.sol`);
+  fs.writeFileSync(path_to_script, script_data, "utf-8");
 
- async function llm_tests_generator() {
+  console.log("Generating Tests, might take some time");
+
+
+  //function for generating tests
+  async function llm_tests_generator() {
     const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: `
-Output only the Solidity contract (starting with // SPDX-License-Identifier: MIT). No extra text, no markdown code formatting.
+      model: "gemini-2.5-flash",
+      contents: `
+Write a Foundry test contract for the provided smart contract. The test contract must be named ${base_file_name}Test and inherit from Test (forge-std).
 
-// Below is the smart contract to be tested, it is located at src/${property}
-// ${contract_data}
-And here is the script that is used to deploy the contract stored at script/${script_file_name}_script.s.sol
+Requirements:
+- The test contract must be simple, clear, and focused on the most critical vulnerabilities.
+- Write 5-10 tests that cover the following vulnerability categories: 
+  1. Reentrancy
+  2. Access Control
+  3. Integer Overflow/Underflow
+  4. Price Manipulation
+  5. DoS/Resource Exhaustion
+  6. Timestamp Manipulation
+  7. Cross-Function/State Consistency
+- However, if a category is not applicable to the contract, skip it and focus on the applicable ones.
 
-// For each of the following major vulnerability categories, generate a suite of property tests for Foundry:
-//
-// 1. Reentrancy: Test that state changes are finalized before external calls, preventing recursive withdrawals.
-// 2. Access Control: Verify that only authorized addresses can call privileged functions.
-// 3. Integer Overflow/Underflow: Fuzz test arithmetic operations with large and small numbers to ensure they don't wrap around.
-// 4. Price Manipulation: Test that the contract's logic is not vulnerable to sudden, arbitrary price changes from a single oracle.
-// 5. DoS/Resource Exhaustion: Fuzz test functions with large loops or dynamic arrays to ensure they don't exceed the block gas limit.
-// 6. Timestamp Manipulation: Test that time-sensitive functions do not rely on block.timestamp.
-// 7. Cross-Function/State Consistency: Test complex multi-step transactions to ensure the contract's state remains consistent.
-// 8. Upgrades/Proxy Pattern Flaws: Test that storage slots and state variables are not corrupted during an upgrade.
-//
-// Instructions:
-// - Create a single Foundry test file.
-// - Import forge-std/Test.sol and the contract being tested.
-// - Use a setUp() function to deploy a new instance of the contract before each test.
-// - For Fuzz tests, use a uint256 parameter in the function signature. For non-fuzz tests, you may use a vm.prank and vm.deal to set up specific test conditions.
-// - Ensure all tests include require statements to check for expected conditions or vm.expectRevert for negative scenarios.
-// - Functions must be internal or public to be callable within the test contract. Do not make them external.
-// - The output should be a single, compilable Solidity file with 5-15 tests. Each test should target a realistic exploit scenario for the specified vulnerability categories. The code should be clean, error-free, and directly usable in a Foundry project.
+Instructions:
+- Import forge-std/Test.sol and the contract to test (src/${property}).
+- Use a setUp() function to deploy the contract.
+- For fuzz tests, use uint256 parameters and use vm.assume to bound inputs when necessary to avoid excessive gas.
+- Use vm.prank and vm.deal for setting up msg.sender and balance.
+- Use require for assertions and vm.expectRevert for expected failures.
+- Make sure all test functions are public.
+- Handle public mapping getters by unpacking the tuple if the mapping returns a struct.
+
+Output only the Solidity code for the test contract, starting with the SPDX license identifier. Do not include any extra text or markdown formatting.
+
+The contract to test is located at src/${property} and the code is:
+
+${contract_data}
         `,
     });
     return response.text;
+  }
+
+  //function for resolving errors in test
+  async function llm_error_resolver(error_that_occured) {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: `
+Here is the contract:
+${contract_data}
+
+And here is the error that occured during its execution, this means there can be more errors then this, i want you to solve and remove every single possible error in this contract
+here is the current error
+${error_that_occured}
+
+Output only the Solidity code for the test contract, starting with the SPDX license identifier. Do not include any extra text or markdown formatting.
+`,
+    });
+    return response.text;
+  }
+
+  //writing the tests
+  const test_data = await llm_tests_generator();
+  const test_dir = path.join(__dirname, 'test');
+  const path_to_test = path.join(test_dir, `${base_file_name}.t.sol`);
+  fs.writeFileSync(path_to_test, test_data, "utf-8");
+
+  console.log("Compiling Tests");
+
+
+  //iterating to resolved errors, trying to compile
+  for (let i = 0; i < 3; i++) {
+    const compileResult = spawnSync('forge', ['compile'], { stdio: 'pipe' });
+    if (compileResult.status !== 0) {
+      console.error("Compilation failed");
+      console.log("Updating tests and rerunning the pipeline");
+      const updated_tests = await llm_error_resolver(compileResult.stderr.toString());
+      //console.log(compileResult.stderr.toString());
+      fs.writeFileSync(path_to_test, updated_tests, "utf-8");
+    }
+  }
+
+  console.log("Compilation successful, running tests");
+
+  //running tests
+  const relative_path_to_test = path.join('test', `${base_file_name}.t.sol`);
+  const testResult = spawnSync('forge', ['test', '--match-path', relative_path_to_test], { stdio: 'pipe' });
+  const testOutput = testResult.stdout.toString() + testResult.stderr.toString();
+
+
+  //function to analyze vulnerabilites
+  async function llm_vulnerability_analyzer(test_output, test_data) {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: `
+You are a smart contract security expert. Your task is to analyze a smart contract and its Foundry test results to identify and report vulnerabilities.
+
+Provide your response in a structured format as a list of findings. For each finding, list only the function name and the potential vulnerability. Do not include any extra text, descriptions, or explanations.
+
+The output must follow this exact format:
+
+- **Function Name:** [Vulnerability]
+
+Here are the contract and test details:
+
+Test File:
+\`\`\`solidity
+${test_data}
+\`\`\`
+
+Terminal Output:
+\`\`\`
+${test_output}
+\`\`\`
+
+you dont have to give vulnerability in each contract, jus the ones serious ones you see in the terminal output...i dont want you to write ** before and after the function name
+i only want you to like yk jus the ones serious one you see are failing tests in the terminal output...nothing except that only the failing tests in the terminal
+also you dont have to wrtite silly vulnerabilities like error handling or smth...only the vunearbilities that can be exploited
+`
+    });
+    return response.text;
+  }
+
+  //printing vulnerability report
+  const vulnerabilityReport = await llm_vulnerability_analyzer(testOutput, test_data);
+  console.log("\n--- Vulnerability Report ---");
+  console.log(vulnerabilityReport);
 }
 
-const test_data = await llm_tests_generator();
-const test_dir = path.join(__dirname,'test');
-let test_file_name = property.substring(0, property.length - 4);
-const path_to_test = path.join(test_dir, `${test_file_name}.t.sol`);
-const writeTestFile = fs.writeFileSync(path_to_test,
-    test_data,
-    "utf-8"
-);
+main().catch(console.error);
