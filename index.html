@@ -12,12 +12,19 @@
             box-sizing: border-box;
         }
 
+        /* Hide scrollbar */
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Courier New', monospace;
             background: #0a0a0f;
             color: #fff;
             overflow-x: hidden;
             position: relative;
+            scrollbar-width: none; /* Firefox */
+            -ms-overflow-style: none; /* IE and Edge */
+        }
+        
+        body::-webkit-scrollbar {
+            display: none; /* Chrome, Safari and Opera */
         }
 
         .bg-animation {
@@ -85,7 +92,118 @@
             z-index: 1;
         }
 
-        /* NEW: Dynamic Navbar */
+        /* Theme Toggle */
+        .theme-toggle {
+            position: fixed;
+            top: 30px;
+            right: 30px;
+            z-index: 1001;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50px;
+            padding: 8px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .theme-toggle:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .theme-icon {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+        }
+
+        /* Light theme styles */
+        body.light-theme {
+            background: #f5f7fa;
+            color: #333;
+        }
+
+        body.light-theme .orb1 {
+            background: linear-gradient(135deg, #a8ff78 0%, #78ffd6 100%);
+        }
+
+        body.light-theme .orb2 {
+            background: linear-gradient(135deg, #56ab2f 0%, #a8e063 100%);
+        }
+
+        body.light-theme .orb3 {
+            background: linear-gradient(135deg, #00b09b 0%, #96c93d 100%);
+        }
+
+        body.light-theme nav {
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+        }
+
+        body.light-theme nav.expanded {
+            background: rgba(255, 255, 255, 0.9);
+            border-color: rgba(0, 0, 0, 0.15);
+        }
+
+        body.light-theme .nav-links a {
+            color: #666;
+        }
+
+        body.light-theme .nav-links a:hover {
+            color: #000;
+        }
+
+        body.light-theme h1 {
+            background: linear-gradient(135deg, #333 0%, #11998e 50%, #38ef7d 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        body.light-theme .subtitle {
+            color: #666;
+        }
+
+        body.light-theme .stat,
+        body.light-theme .dashboard-card,
+        body.light-theme .feature,
+        body.light-theme .code-explanation,
+        body.light-theme footer {
+            background: rgba(255, 255, 255, 0.7);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            color: #333;
+        }
+
+        body.light-theme .stat-label,
+        body.light-theme .explanation-text,
+        body.light-theme .footer-text,
+        body.light-theme .footer-links a,
+        body.light-theme .social-link {
+            color: #666;
+        }
+
+        body.light-theme .footer-links a:hover,
+        body.light-theme .social-link:hover {
+            color: #000;
+        }
+
+        body.light-theme .terminal {
+            background: #1a1a2e;
+            border: 1px solid rgba(0, 0, 0, 0.2);
+        }
+
+        body.light-theme .code-block {
+            background: #1a1a2e;
+        }
+
+        body.light-theme .code-header {
+            background: #16213e;
+        }
+
+        /* Dynamic Navbar */
         nav {
             padding: 20px 40px;
             display: flex;
@@ -171,7 +289,7 @@
             width: 100%;
         }
 
-        /* NEW: Enhanced Hero Section */
+        /* Enhanced Hero Section */
         .hero {
             text-align: center;
             height: 100vh;
@@ -277,7 +395,7 @@
             background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
             color: #fff;
             text-decoration: none;
-            border-radius: 50px;
+            border-radius: 100px;
             font-weight: 600;
             font-size: 16px;
             transition: all 0.3s;
@@ -285,8 +403,8 @@
             position: relative;
             overflow: hidden;
             animation: pulse 2s infinite, fadeInUp 1s forwards 1.1s;
-            border-radius: 100px;
             opacity: 0;
+            box-shadow: 0 0 0 2px transparent;
         }
 
         @keyframes pulse {
@@ -318,7 +436,7 @@
             box-shadow: 0 10px 40px rgba(56, 239, 125, 0.5);
         }
 
-        /* NEW: Interactive Stats Section */
+        /* Interactive Stats Section */
         .stats {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -398,8 +516,8 @@
             letter-spacing: 2px;
         }
 
-        /* NEW: Interactive Code Visualization */
-        .code-visualization {
+        /* Command Examples Section */
+        .command-examples {
             padding: 80px 0;
             margin: 80px 0;
             position: relative;
@@ -408,18 +526,18 @@
             transition: all 0.8s ease;
         }
 
-        .code-visualization.animate {
+        .command-examples.animate {
             opacity: 1;
             transform: translateX(0);
         }
 
-        .code-container {
+        .command-container {
             display: flex;
             gap: 40px;
             align-items: stretch;
         }
 
-        .code-block {
+        .command-block {
             flex: 1;
             background: #1a1a2e;
             border-radius: 20px;
@@ -430,7 +548,7 @@
             flex-direction: column;
         }
 
-        .code-header {
+        .command-header {
             background: #16213e;
             padding: 15px 20px;
             display: flex;
@@ -439,18 +557,18 @@
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         }
 
-        .code-title {
+        .command-title {
             font-size: 14px;
             font-weight: 600;
             color: #38ef7d;
         }
 
-        .code-controls {
+        .command-controls {
             display: flex;
             gap: 10px;
         }
 
-        .code-control {
+        .command-control {
             width: 12px;
             height: 12px;
             border-radius: 50%;
@@ -468,7 +586,7 @@
             background: #27c93f;
         }
 
-        .code-content {
+        .command-content {
             padding: 20px;
             font-family: 'Courier New', monospace;
             font-size: 14px;
@@ -478,13 +596,13 @@
             overflow-y: auto;
         }
 
-        .code-line {
-            margin-bottom: 5px;
+        .command-line {
+            margin-bottom: 15px;
             opacity: 0.7;
             transition: all 0.3s;
         }
 
-        .code-line.highlight {
+        .command-line.highlight {
             opacity: 1;
             color: #38ef7d;
             background: rgba(56, 239, 125, 0.1);
@@ -493,17 +611,7 @@
             border-left: 2px solid #38ef7d;
         }
 
-        .code-line.vulnerable {
-            color: #ff5f56;
-            background: rgba(255, 95, 86, 0.1);
-        }
-
-        .code-line.fixed {
-            color: #27c93f;
-            background: rgba(39, 201, 63, 0.1);
-        }
-
-        .code-explanation {
+        .command-explanation {
             flex: 1;
             padding: 30px;
             background: rgba(255, 255, 255, 0.03);
@@ -527,41 +635,7 @@
             margin-bottom: 30px;
         }
 
-        .vulnerability-indicator {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 15px;
-            padding: 10px;
-            border-radius: 10px;
-            transition: all 0.3s;
-            cursor: pointer;
-        }
-
-        .vulnerability-indicator:hover {
-            background: rgba(255, 255, 255, 0.05);
-        }
-
-        .indicator-dot {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-        }
-
-        .indicator-critical {
-            background: #ff5f56;
-        }
-
-        .indicator-medium {
-            background: #38ef7d;
-        }
-
-        .indicator-text {
-            font-size: 14px;
-            color: #ccc;
-        }
-
-        /* NEW: Interactive Security Dashboard */
+        /* Security Dashboard */
         .security-dashboard {
             padding: 80px 0;
             margin: 80px 0;
@@ -663,7 +737,7 @@
             color: #ff5f56;
         }
 
-        /* NEW: Interactive Terminal */
+        /* Interactive Terminal */
         .terminal-section {
             padding: 80px 0;
             margin: 80px 0;
@@ -746,6 +820,10 @@
             color: #ff5f56;
         }
 
+        .bold {
+            font-weight: bold;
+        }
+
         .cursor {
             display: inline-block;
             width: 8px;
@@ -764,7 +842,7 @@
             }
         }
 
-        /* NEW: Enhanced Features Section with Text Decryption */
+        /* Enhanced Features Section with Text Decryption */
         .features {
             padding: 80px 0 120px;
             position: relative;
@@ -866,7 +944,7 @@
             z-index: 1;
         }
 
-        /* NEW: Text Decryption Effect */
+        /* Text Decryption Effect */
         .decrypt-container {
             position: relative;
             overflow: hidden;
@@ -892,13 +970,14 @@
             letter-spacing: 2px;
             user-select: none;
             z-index: 2;
+            text-align: center;
         }
 
         .feature-content {
             position: relative;
             z-index: 1;
             opacity: 0;
-            transition: opacity 0.8s ease 0.3s;
+            transition: opacity 0.8s ease;
         }
 
         .feature.decrypted .encrypted-text {
@@ -908,19 +987,6 @@
 
         .feature.decrypted .feature-content {
             opacity: 1;
-        }
-
-        /* NEW: Progress Bar for Decryption */
-        .decrypt-progress {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 0%;
-            height: 4px;
-            background: linear-gradient(90deg, #11998e, #38ef7d);
-            border-radius: 0 0 20px 20px;
-            transition: width 1.5s ease;
-            z-index: 3;
         }
 
         footer {
@@ -1020,7 +1086,7 @@
                 grid-template-columns: 1fr;
             }
 
-            .code-container {
+            .command-container {
                 flex-direction: column;
             }
 
@@ -1042,6 +1108,23 @@
         <div class="orb orb1"></div>
         <div class="orb orb2"></div>
         <div class="orb orb3"></div>
+    </div>
+
+    <!-- Theme Toggle -->
+    <div class="theme-toggle" id="themeToggle">
+        <div class="theme-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="5"></circle>
+                <line x1="12" y1="1" x2="12" y2="3"></line>
+                <line x1="12" y1="21" x2="12" y2="23"></line>
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                <line x1="1" y1="12" x2="3" y2="12"></line>
+                <line x1="21" y1="12" x2="23" y2="12"></line>
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+            </svg>
+        </div>
     </div>
 
     <nav id="navbar">
@@ -1070,64 +1153,37 @@
                 <div class="stat-label">Gemini 2.5 used as LLM</div>
             </div>
             <div class="stat">
-                <div class="stat-number" data-target="50">0</div>
+                <div class="stat-number" data-target="10">0</div>
                 <div class="stat-label">Plus tests generated per contract</div>
             </div>
             <div class="stat">
-                <div class="stat-number" data-target="10">0</div>
-                <div class="stat-label">Plus times properties improved iteratively</div>
+                <div class="stat-number" data-target="8">0</div>
+                <div class="stat-label">Major vulnerabilities tested as well</div>
             </div>
         </section>
 
-        <section class="code-visualization" id="code-viz">
-            <div class="section-title">Interactive Code Analysis</div>
-            <div class="code-container">
-                <div class="code-block">
-                    <div class="code-header">
-                        <div class="code-title">contract.sol</div>
-                        <div class="code-controls">
-                            <div class="code-control control-red"></div>
-                            <div class="code-control control-yellow"></div>
-                            <div class="code-control control-green"></div>
+        <section class="command-examples" id="command-examples">
+            <div class="section-title">Quick Start</div>
+            <div class="command-container">
+                <div class="command-block">
+                    <div class="command-header">
+                        <div class="command-title">terminal</div>
+                        <div class="command-controls">
+                            <div class="command-control control-red"></div>
+                            <div class="command-control control-yellow"></div>
+                            <div class="command-control control-green"></div>
                         </div>
                     </div>
-                    <div class="code-content" id="codeContent">
-                        <div class="code-line">pragma solidity ^0.8.0;</div>
-                        <div class="code-line"></div>
-                        <div class="code-line">contract VulnerableContract {</div>
-                        <div class="code-line">    mapping(address => uint) public balances;</div>
-                        <div class="code-line">    </div>
-                        <div class="code-line vulnerable" id="vulnerableLine">    function withdraw(uint _amount) public {</div>
-                        <div class="code-line vulnerable">        require(balances[msg.sender] >= _amount);</div>
-                        <div class="code-line vulnerable">        (bool success, ) = msg.sender.call{value: _amount}("");</div>
-                        <div class="code-line vulnerable">        require(success);</div>
-                        <div class="code-line vulnerable">        balances[msg.sender] -= _amount;</div>
-                        <div class="code-line vulnerable">    }</div>
-                        <div class="code-line"></div>
-                        <div class="code-line fixed" id="fixedLine">    function withdrawFixed(uint _amount) public {</div>
-                        <div class="code-line fixed">        require(balances[msg.sender] >= _amount);</div>
-                        <div class="code-line fixed">        balances[msg.sender] -= _amount;</div>
-                        <div class="code-line fixed">        (bool success, ) = msg.sender.call{value: _amount}("");</div>
-                        <div class="code-line fixed">        require(success);</div>
-                        <div class="code-line fixed">    }</div>
-                        <div class="code-line">}</div>
+                    <div class="command-content" id="commandContent">
+                        <div class="command-line">$ npm install scria</div>
+                        <div class="command-line">$ scria --gen --properties contract_name.sol</div>
+                        <div class="command-line">$ scria --help</div>
                     </div>
                 </div>
-                <div class="code-explanation">
-                    <h3 class="explanation-title">Reentrancy Vulnerability</h3>
-                    <p class="explanation-text">This contract contains a critical reentrancy vulnerability. The state update happens after the external call, allowing a malicious contract to re-enter the function before balance is deducted.</p>
-                    
-                    <div class="vulnerability-indicator" data-target="vulnerableLine">
-                        <div class="indicator-dot indicator-critical"></div>
-                        <div class="indicator-text">Vulnerable Code - Reentrancy Attack</div>
-                    </div>
-                    
-                    <div class="vulnerability-indicator" data-target="fixedLine">
-                        <div class="indicator-dot indicator-medium"></div>
-                        <div class="indicator-text">Fixed Implementation - Checks-Effects-Interactions</div>
-                    </div>
-                    
-                    <p class="explanation-text">Our AI automatically detects this pattern and suggests the secure implementation using the Checks-Effects-Interactions pattern.</p>
+                <div class="command-explanation">
+                    <h3 class="explanation-title">Getting Started</h3>
+                    <p class="explanation-text">Install Scria with a single command and start generating security properties for your smart contracts immediately.</p>
+                    <p class="explanation-text">Our CLI tool provides intuitive commands to analyze your contracts, generate tests, and detect vulnerabilities.</p>
                 </div>
             </div>
         </section>
@@ -1137,24 +1193,24 @@
             
             <div class="dashboard-grid">
                 <div class="dashboard-card">
-                    <h3 class="dashboard-title">Contracts Analyzed</h3>
-                    <div class="dashboard-value" data-target="1247">0</div>
-                    <div class="dashboard-change">+12% this week</div>
+                    <h3 class="dashboard-title">Total contracts tested</h3>
+                    <div class="dashboard-value" data-target="106">0</div>
+                    <div class="dashboard-change">+58% this week</div>
                 </div>
                 <div class="dashboard-card">
-                    <h3 class="dashboard-title">Vulnerabilities Found</h3>
-                    <div class="dashboard-value" data-target="83">0</div>
-                    <div class="dashboard-change">-5% this week</div>
+                    <h3 class="dashboard-title">Vulnerabilities detected</h3>
+                    <div class="dashboard-value" data-target="326">0</div>
+                    <div class="dashboard-change">+35% this week</div>
                 </div>
                 <div class="dashboard-card">
-                    <h3 class="dashboard-title">Critical Issues</h3>
-                    <div class="dashboard-value" data-target="17">0</div>
-                    <div class="dashboard-change negative">+2 this week</div>
+                    <h3 class="dashboard-title">Avg time for generation (min)</h3>
+                    <div class="dashboard-value" data-target="5.28">0</div>
+                    <div class="dashboard-change" style="color: rgb(227, 45, 45);">+1.31 min this week </div>
                 </div>
                 <div class="dashboard-card">
-                    <h3 class="dashboard-title">Test Coverage</h3>
-                    <div class="dashboard-value" data-target="94">0%</div>
-                    <div class="dashboard-change">+3% this week</div>
+                    <h3 class="dashboard-title">Tests generated</h3>
+                    <div class="dashboard-value" data-target="1022">0</div>
+                    <div class="dashboard-change">+107% this week</div>
                 </div>
             </div>
         </section>
@@ -1177,8 +1233,7 @@
             <div class="section-title">Why scria.ai ?</div>
             <div class="feature-grid">
                 <div class="feature decrypt-container">
-                    <div class="encrypted-text" id="encryptedText1">01010111 01101000 01111001 00100000 01010011 01100011 01110010 01101001 01100001 00111111</div>
-                    <div class="decrypt-progress"></div>
+                    <div class="encrypted-text" id="encryptedText1">djkagfbkdjgkftv jksafdtbusdkhtfvkgsd vgkfsavbktgaskcjbhgfuavs dkh lbc dlkgah345876210934nf4q3utbv24c4 ufgb4 vbwurytbfc98tc4g8vb 48</div>
                     <div class="feature-content">
                         <div class="feature-icon">🛡️</div>
                         <h3>Vulnerability Detection</h3>
@@ -1186,8 +1241,7 @@
                     </div>
                 </div>
                 <div class="feature decrypt-container">
-                    <div class="encrypted-text" id="encryptedText2">01010100 01100101 01110011 01110100 00100000 01000111 01100101 01101110 01100101 01110010 01100001 01110100 01101001 01101111 01101110</div>
-                    <div class="decrypt-progress"></div>
+                    <div class="encrypted-text" id="encryptedText2">djkagfbkdjgkftv jksafdtbusdkhtfvkgsd vgkfsavbktgaskcjbhgfuavs dkh lbc dlkgah345876210934nf4q3utbv24c4 ufgb4 vbwurytbfc98tc4g8vb 48</div>
                     <div class="feature-content">
                         <div class="feature-icon">🧪</div>
                         <h3>Automated Test Generation</h3>
@@ -1195,8 +1249,7 @@
                     </div>
                 </div>
                 <div class="feature decrypt-container">
-                    <div class="encrypted-text" id="encryptedText3">01001101 01100001 01110100 01101000 01100101 01101101 01100001 01110100 01101001 01100011 01100001 01101100 00100000 01010000 01110010 01101111 01110000 01100101 01110010 01110100 01101001 01100101 01110011</div>
-                    <div class="decrypt-progress"></div>
+                    <div class="encrypted-text" id="encryptedText3">djkagfbkdjgkftv jksafdtbusdkhtfvkgsd vgkfsavbktgaskcjbhgfuavs dkh lbc dlkgah345876210934nf4q3utbv24c4 ufgb4 vbwurytbfc98tc4g8vb 48</div>
                     <div class="feature-content">
                         <div class="feature-icon">🎯</div>
                         <h3>Mathematically Sound Properties</h3>
@@ -1204,8 +1257,7 @@
                     </div>
                 </div>
                 <div class="feature decrypt-container">
-                    <div class="encrypted-text" id="encryptedText4">01010010 01100101 01100111 01110101 01101100 01100001 01110010 00100000 01001101 01100001 01101001 01101110 01110100 01100101 01101110 01100001 01101110 01100011 01100101</div>
-                    <div class="decrypt-progress"></div>
+                    <div class="encrypted-text" id="encryptedText4">djkagfbkdjgkftv jksafdtbusdkhtfvkgsd vgkfsavbktgaskcjbhgfuavs dkh lbc dlkgah345876210934nf4q3utbv24c4 ufgb4 vbwurytbfc98tc4g8vb 48</div>
                     <div class="feature-content">
                         <div class="feature-icon">🚀</div>
                         <h3>Regularly Maintained</h3>
@@ -1250,6 +1302,30 @@
     </div>
 
     <script>
+        // Theme Toggle
+        const themeToggle = document.getElementById('themeToggle');
+        const body = document.body;
+        
+        themeToggle.addEventListener('click', () => {
+            body.classList.toggle('light-theme');
+            
+            // Update icon based on theme
+            const icon = themeToggle.querySelector('svg');
+            if (body.classList.contains('light-theme')) {
+                icon.innerHTML = `<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>`;
+            } else {
+                icon.innerHTML = `<circle cx="12" cy="12" r="5"></circle>
+                <line x1="12" y1="1" x2="12" y2="3"></line>
+                <line x1="12" y1="21" x2="12" y2="23"></line>
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                <line x1="1" y1="12" x2="3" y2="12"></line>
+                <line x1="21" y1="12" x2="23" y2="12"></line>
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>`;
+            }
+        });
+
         // Dynamic Navbar
         const navbar = document.getElementById('navbar');
         let lastScrollY = window.scrollY;
@@ -1344,34 +1420,6 @@
         initParticles();
         animateParticles();
         
-        // Interactive Code Visualization
-        const vulnerabilityIndicators = document.querySelectorAll('.vulnerability-indicator');
-        const codeLines = document.querySelectorAll('.code-line');
-        
-        vulnerabilityIndicators.forEach(indicator => {
-            indicator.addEventListener('mouseenter', () => {
-                const targetId = indicator.getAttribute('data-target');
-                const targetLine = document.getElementById(targetId);
-                
-                // Remove highlight from all lines
-                codeLines.forEach(line => {
-                    line.classList.remove('highlight');
-                });
-                
-                // Add highlight to target line
-                if (targetLine) {
-                    targetLine.classList.add('highlight');
-                }
-            });
-            
-            indicator.addEventListener('mouseleave', () => {
-                // Remove highlight from all lines
-                codeLines.forEach(line => {
-                    line.classList.remove('highlight');
-                });
-            });
-        });
-        
         // Animated counters
         const counters = document.querySelectorAll('.stat-number, .dashboard-value');
         
@@ -1385,14 +1433,14 @@
                 current += step;
                 if (current >= target) {
                     counter.textContent = target;
-                    if (counter.classList.contains('dashboard-value') && counter.textContent === '94') {
-                        counter.textContent = '94%';
+                    if (counter.classList.contains('dashboard-value') && counter.textContent === '1000') {
+                        counter.textContent = '1000+';
                     }
                     clearInterval(timer);
                 } else {
                     counter.textContent = Math.floor(current);
-                    if (counter.classList.contains('dashboard-value') && counter.textContent === '94') {
-                        counter.textContent = '94%';
+                    if (counter.classList.contains('dashboard-value') && counter.textContent === '1000') {
+                        counter.textContent = '1000+';
                     }
                 }
             }, 16);
@@ -1400,7 +1448,7 @@
         
         // Enhanced Scroll Animations
         const animatedElements = document.querySelectorAll('.stat, .dashboard-card, .feature');
-        const sections = document.querySelectorAll('.code-visualization, .security-dashboard, .terminal-section, .features');
+        const sections = document.querySelectorAll('.command-examples, .security-dashboard, .terminal-section, .features');
         
         const scrollObserver = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
@@ -1419,7 +1467,7 @@
                     }
                     
                     // Animate sections
-                    if (entry.target.classList.contains('code-visualization') ||
+                    if (entry.target.classList.contains('command-examples') ||
                         entry.target.classList.contains('security-dashboard') ||
                         entry.target.classList.contains('terminal-section') ||
                         entry.target.classList.contains('features')) {
@@ -1441,18 +1489,17 @@
         // Terminal Animation
         const terminalContent = document.getElementById('terminalContent');
         const terminalLines = [
-            { text: '$ scria audit contract.sol', class: 'command', delay: 500 },
-            { text: 'Loading contract...', class: 'output', delay: 1000 },
-            { text: 'Analyzing for vulnerabilities...', class: 'output', delay: 1500 },
-            { text: '✓ Checking reentrancy vulnerabilities', class: 'success', delay: 2000 },
-            { text: '✓ Checking access control issues', class: 'success', delay: 2500 },
-            { text: '✗ Critical: Reentrancy vulnerability detected in withdraw()', class: 'error', delay: 3000 },
-            { text: '✗ High: Missing access control in setAdmin()', class: 'error', delay: 3500 },
-            { text: '✓ Generating fixes...', class: 'output', delay: 4000 },
-            { text: '✓ Fixes generated successfully', class: 'success', delay: 4500 },
-            { text: '✓ Generating test cases...', class: 'output', delay: 5000 },
-            { text: '✓ 47 test cases generated', class: 'success', delay: 5500 },
-            { text: 'Audit complete. Report saved to scria_audit_report.md', class: 'output', delay: 6000 }
+            { text: '<green><bold>Contract loaded successfully', class: 'success bold', delay: 500 },
+            { text: 'Generating Script', class: 'output', delay: 1000 },
+            { text: 'Generating Tests, might take some time', class: 'output', delay: 1500 },
+            { text: 'Compiling Tests', class: 'output', delay: 2000 },
+            { text: '<green>Compilation successful, running tests', class: 'success', delay: 2500 },
+            { text: 'No significant vulnerability detected', class: 'success', delay: 3000 },
+            { text: '', class: 'output', delay: 3500 },
+            { text: '<red>--- Potential Vulnerabilities ---', class: 'error', delay: 4000 },
+            { text: 'withdraw(): Reentrancy vulnerability', class: 'error', delay: 4500 },
+            { text: 'setAdmin(): Missing access control', class: 'error', delay: 5000 },
+            { text: 'transfer(): Integer overflow possible', class: 'error', delay: 5500 }
         ];
         
         function typeTerminal() {
@@ -1464,7 +1511,7 @@
                     setTimeout(() => {
                         const lineElement = document.createElement('div');
                         lineElement.className = `terminal-line ${line.class}`;
-                        lineElement.textContent = line.text;
+                        lineElement.innerHTML = line.text.replace('<green>', '<span class="success">').replace('<red>', '<span class="error">').replace('<bold>', '<span class="bold">').replace(/<\/?(green|red|bold)>/g, '</span>');
                         terminalContent.appendChild(lineElement);
                         
                         // Scroll to bottom
@@ -1499,29 +1546,14 @@
         // Text Decryption Effect
         const features = document.querySelectorAll('.feature.decrypt-container');
         
-        const decryptObserver = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    const feature = entry.target;
-                    const progressBar = feature.querySelector('.decrypt-progress');
-                    
-                    // Animate the progress bar
-                    progressBar.style.width = '100%';
-                    
-                    // After progress bar completes, reveal the content
-                    setTimeout(() => {
-                        feature.classList.add('decrypted');
-                    }, 1500);
-                    
-                    // Stop observing once decrypted
-                    decryptObserver.unobserve(feature);
-                }
-            });
-        }, { threshold: 0.5 });
-        
-        // Observe all feature cards
         features.forEach(feature => {
-            decryptObserver.observe(feature);
+            feature.addEventListener('mouseenter', () => {
+                feature.classList.add('decrypted');
+            });
+            
+            feature.addEventListener('mouseleave', () => {
+                feature.classList.remove('decrypted');
+            });
         });
     </script>
 </body>
