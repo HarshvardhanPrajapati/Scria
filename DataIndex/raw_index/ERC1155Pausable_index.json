@@ -1,0 +1,108 @@
+[
+    {
+        "id": "ERC1155Pausable_contract_context",
+        "chunk_type": "CONTRACT_CONTEXT",
+        "source_contract": "ERC1155Pausable.sol",
+        "target_function": "ALL",
+        "text_chunk": "// SPDX-License-Identifier: MIT\n// OpenZeppelin Contracts v4.4.1 (token/ERC1155/extensions/ERC1155Pausable.sol)\n\npragma solidity ^0.8.0;\n\nimport \"../ERC1155.sol\";\nimport \"../../../security/Pausable.sol\";\n\n/**\n * @dev ERC1155 token with pausable token transfers, minting and burning.\n *\n * Useful for scenarios such as preventing trades until the end of an evaluation\n * period, or having an emergency switch for freezing all token transfers in the\n * event of a large bug.\n *\n * _Available since v3.1._\n */\nabstract contract ERC1155Pausable is ERC1155, Pausable {\n    /**\n     * @dev See {ERC1155-_beforeTokenTransfer}.\n     *\n     * Requirements:\n     *\n     * - the contract must not be paused.\n     */\n    function _beforeTokenTransfer(\n        address operator,\n        address from,\n        address to,\n        uint256[] memory ids,\n        uint256[] memory amounts,\n        bytes memory data\n    ) internal virtual override {\n        super._beforeTokenTransfer(operator, from, to, ids, amounts, data);\n\n        require(!paused(), \"ERC1155Pausable: token transfer while paused\");\n    }\n}\n",
+        "formal_property": null,
+        "nl_summary": "",
+        "metadata": {
+            "function_list": [
+                "_beforeTokenTransfer"
+            ],
+            "is_standard": "UNKNOWN"
+        }
+    },
+    {
+        "id": "ERC1155Pausable_pauseMethodPausesContract",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC1155Pausable.sol",
+        "target_function": "UNKNOWN",
+        "text_chunk": "// SPDX-License-Identifier: MIT\n// OpenZeppelin Contracts v4.4.1 (token/ERC1155/extensions/ERC1155Pausable.sol)\n\npragma solidity ^0.8.0;\n\nimport \"../ERC1155.sol\";\nimport \"../../../security/Pausable.sol\";\n\n/**\n * @dev ERC1155 token with pausable token transfers, minting and burning.\n *\n * Useful for scenarios such as preventing trades until the end of an evaluation\n * period, or having an emergency switch for freezing all token transfers in the\n * event of a large bug.\n *\n * _Available since v3.1._\n */\nabstract contract ERC1155Pausable is ERC1155, Pausable {\n    /**\n     * @dev See {ERC1155-_beforeTokenTransfer}.\n     *\n     * Requirements:\n     *\n     * - the contract must not be paused.\n     */\n    function _beforeTokenTransfer(\n        address operator,\n        address from,\n        address to,\n        uint256[] memory ids,\n        uint256[] memory amounts,\n        bytes memory data\n    ) internal virtual override {\n        super._beforeTokenTransfer(operator, from, to, ids, amounts, data);\n\n        require(!paused(), \"ERC1155Pausable: token transfer while paused\");\n    }\n}\n",
+        "formal_property": "rule pauseMethodPausesContract {\n    require !paused();\n\n    env e;\n    pause(e);\n\n    assert paused(), \n        \"Calling pause must pause an unpaused contract\";\n}",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "pauseMethodPausesContract",
+            "rule_type": "RULE"
+        }
+    },
+    {
+        "id": "ERC1155Pausable_unpauseMethodUnpausesContract",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC1155Pausable.sol",
+        "target_function": "UNKNOWN",
+        "text_chunk": "// SPDX-License-Identifier: MIT\n// OpenZeppelin Contracts v4.4.1 (token/ERC1155/extensions/ERC1155Pausable.sol)\n\npragma solidity ^0.8.0;\n\nimport \"../ERC1155.sol\";\nimport \"../../../security/Pausable.sol\";\n\n/**\n * @dev ERC1155 token with pausable token transfers, minting and burning.\n *\n * Useful for scenarios such as preventing trades until the end of an evaluation\n * period, or having an emergency switch for freezing all token transfers in the\n * event of a large bug.\n *\n * _Available since v3.1._\n */\nabstract contract ERC1155Pausable is ERC1155, Pausable {\n    /**\n     * @dev See {ERC1155-_beforeTokenTransfer}.\n     *\n     * Requirements:\n     *\n     * - the contract must not be paused.\n     */\n    function _beforeTokenTransfer(\n        address operator,\n        address from,\n        address to,\n        uint256[] memory ids,\n        uint256[] memory amounts,\n        bytes memory data\n    ) internal virtual override {\n        super._beforeTokenTransfer(operator, from, to, ids, amounts, data);\n\n        require(!paused(), \"ERC1155Pausable: token transfer while paused\");\n    }\n}\n",
+        "formal_property": "rule unpauseMethodUnpausesContract {\n    require paused();\n\n    env e;\n    unpause(e);\n\n    assert !paused(), \n        \"Calling unpause must unpause a paused contract\";\n}",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "unpauseMethodUnpausesContract",
+            "rule_type": "RULE"
+        }
+    },
+    {
+        "id": "ERC1155Pausable_cannotPauseWhilePaused",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC1155Pausable.sol",
+        "target_function": "UNKNOWN",
+        "text_chunk": "// SPDX-License-Identifier: MIT\n// OpenZeppelin Contracts v4.4.1 (token/ERC1155/extensions/ERC1155Pausable.sol)\n\npragma solidity ^0.8.0;\n\nimport \"../ERC1155.sol\";\nimport \"../../../security/Pausable.sol\";\n\n/**\n * @dev ERC1155 token with pausable token transfers, minting and burning.\n *\n * Useful for scenarios such as preventing trades until the end of an evaluation\n * period, or having an emergency switch for freezing all token transfers in the\n * event of a large bug.\n *\n * _Available since v3.1._\n */\nabstract contract ERC1155Pausable is ERC1155, Pausable {\n    /**\n     * @dev See {ERC1155-_beforeTokenTransfer}.\n     *\n     * Requirements:\n     *\n     * - the contract must not be paused.\n     */\n    function _beforeTokenTransfer(\n        address operator,\n        address from,\n        address to,\n        uint256[] memory ids,\n        uint256[] memory amounts,\n        bytes memory data\n    ) internal virtual override {\n        super._beforeTokenTransfer(operator, from, to, ids, amounts, data);\n\n        require(!paused(), \"ERC1155Pausable: token transfer while paused\");\n    }\n}\n",
+        "formal_property": "rule cannotPauseWhilePaused {\n    require paused();\n\n    env e;\n    pause@withrevert(e);\n\n    assert lastReverted, \n        \"A call to pause when already paused must revert\";\n}",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "cannotPauseWhilePaused",
+            "rule_type": "RULE"
+        }
+    },
+    {
+        "id": "ERC1155Pausable_cannotUnpauseWhileUnpaused",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC1155Pausable.sol",
+        "target_function": "UNKNOWN",
+        "text_chunk": "// SPDX-License-Identifier: MIT\n// OpenZeppelin Contracts v4.4.1 (token/ERC1155/extensions/ERC1155Pausable.sol)\n\npragma solidity ^0.8.0;\n\nimport \"../ERC1155.sol\";\nimport \"../../../security/Pausable.sol\";\n\n/**\n * @dev ERC1155 token with pausable token transfers, minting and burning.\n *\n * Useful for scenarios such as preventing trades until the end of an evaluation\n * period, or having an emergency switch for freezing all token transfers in the\n * event of a large bug.\n *\n * _Available since v3.1._\n */\nabstract contract ERC1155Pausable is ERC1155, Pausable {\n    /**\n     * @dev See {ERC1155-_beforeTokenTransfer}.\n     *\n     * Requirements:\n     *\n     * - the contract must not be paused.\n     */\n    function _beforeTokenTransfer(\n        address operator,\n        address from,\n        address to,\n        uint256[] memory ids,\n        uint256[] memory amounts,\n        bytes memory data\n    ) internal virtual override {\n        super._beforeTokenTransfer(operator, from, to, ids, amounts, data);\n\n        require(!paused(), \"ERC1155Pausable: token transfer while paused\");\n    }\n}\n",
+        "formal_property": "rule cannotUnpauseWhileUnpaused {\n    require !paused();\n\n    env e;\n    unpause@withrevert(e);\n\n    assert lastReverted, \n        \"A call to unpause when already unpaused must revert\";\n}",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "cannotUnpauseWhileUnpaused",
+            "rule_type": "RULE"
+        }
+    },
+    {
+        "id": "ERC1155Pausable_whenNotPausedModifierCausesRevertIfPaused",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC1155Pausable.sol",
+        "target_function": "UNKNOWN",
+        "text_chunk": "// SPDX-License-Identifier: MIT\n// OpenZeppelin Contracts v4.4.1 (token/ERC1155/extensions/ERC1155Pausable.sol)\n\npragma solidity ^0.8.0;\n\nimport \"../ERC1155.sol\";\nimport \"../../../security/Pausable.sol\";\n\n/**\n * @dev ERC1155 token with pausable token transfers, minting and burning.\n *\n * Useful for scenarios such as preventing trades until the end of an evaluation\n * period, or having an emergency switch for freezing all token transfers in the\n * event of a large bug.\n *\n * _Available since v3.1._\n */\nabstract contract ERC1155Pausable is ERC1155, Pausable {\n    /**\n     * @dev See {ERC1155-_beforeTokenTransfer}.\n     *\n     * Requirements:\n     *\n     * - the contract must not be paused.\n     */\n    function _beforeTokenTransfer(\n        address operator,\n        address from,\n        address to,\n        uint256[] memory ids,\n        uint256[] memory amounts,\n        bytes memory data\n    ) internal virtual override {\n        super._beforeTokenTransfer(operator, from, to, ids, amounts, data);\n\n        require(!paused(), \"ERC1155Pausable: token transfer while paused\");\n    }\n}\n",
+        "formal_property": "rule whenNotPausedModifierCausesRevertIfPaused {\n    require paused();\n\n    env e; calldataarg args;\n    onlyWhenNotPausedMethod@withrevert(e, args);\n\n    assert lastReverted, \n        \"Functions with the whenNotPaused modifier must revert if the contract is paused\";\n}",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "whenNotPausedModifierCausesRevertIfPaused",
+            "rule_type": "RULE"
+        }
+    },
+    {
+        "id": "ERC1155Pausable_whenPausedModifierCausesRevertIfUnpaused",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC1155Pausable.sol",
+        "target_function": "UNKNOWN",
+        "text_chunk": "// SPDX-License-Identifier: MIT\n// OpenZeppelin Contracts v4.4.1 (token/ERC1155/extensions/ERC1155Pausable.sol)\n\npragma solidity ^0.8.0;\n\nimport \"../ERC1155.sol\";\nimport \"../../../security/Pausable.sol\";\n\n/**\n * @dev ERC1155 token with pausable token transfers, minting and burning.\n *\n * Useful for scenarios such as preventing trades until the end of an evaluation\n * period, or having an emergency switch for freezing all token transfers in the\n * event of a large bug.\n *\n * _Available since v3.1._\n */\nabstract contract ERC1155Pausable is ERC1155, Pausable {\n    /**\n     * @dev See {ERC1155-_beforeTokenTransfer}.\n     *\n     * Requirements:\n     *\n     * - the contract must not be paused.\n     */\n    function _beforeTokenTransfer(\n        address operator,\n        address from,\n        address to,\n        uint256[] memory ids,\n        uint256[] memory amounts,\n        bytes memory data\n    ) internal virtual override {\n        super._beforeTokenTransfer(operator, from, to, ids, amounts, data);\n\n        require(!paused(), \"ERC1155Pausable: token transfer while paused\");\n    }\n}\n",
+        "formal_property": "rule whenPausedModifierCausesRevertIfUnpaused {\n    require !paused();\n\n    env e; calldataarg args;\n    onlyWhenPausedMethod@withrevert(e, args);\n\n    assert lastReverted, \n        \"Functions with the whenPaused modifier must revert if the contract is not paused\";\n}",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "whenPausedModifierCausesRevertIfUnpaused",
+            "rule_type": "RULE"
+        }
+    },
+    {
+        "id": "ERC1155Pausable_sanity",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC1155Pausable.sol",
+        "target_function": "UNKNOWN",
+        "text_chunk": "// SPDX-License-Identifier: MIT\n// OpenZeppelin Contracts v4.4.1 (token/ERC1155/extensions/ERC1155Pausable.sol)\n\npragma solidity ^0.8.0;\n\nimport \"../ERC1155.sol\";\nimport \"../../../security/Pausable.sol\";\n\n/**\n * @dev ERC1155 token with pausable token transfers, minting and burning.\n *\n * Useful for scenarios such as preventing trades until the end of an evaluation\n * period, or having an emergency switch for freezing all token transfers in the\n * event of a large bug.\n *\n * _Available since v3.1._\n */\nabstract contract ERC1155Pausable is ERC1155, Pausable {\n    /**\n     * @dev See {ERC1155-_beforeTokenTransfer}.\n     *\n     * Requirements:\n     *\n     * - the contract must not be paused.\n     */\n    function _beforeTokenTransfer(\n        address operator,\n        address from,\n        address to,\n        uint256[] memory ids,\n        uint256[] memory amounts,\n        bytes memory data\n    ) internal virtual override {\n        super._beforeTokenTransfer(operator, from, to, ids, amounts, data);\n\n        require(!paused(), \"ERC1155Pausable: token transfer while paused\");\n    }\n}\n",
+        "formal_property": "rule sanity {\n    method f; env e; calldataarg args;\n\n    f(e, args);\n\n    assert false, \n        \"This rule should always fail\";\n}",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "sanity",
+            "rule_type": "RULE"
+        }
+    }
+]

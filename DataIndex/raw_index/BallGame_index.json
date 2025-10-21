@@ -1,0 +1,30 @@
+[
+    {
+        "id": "BallGame_contract_context",
+        "chunk_type": "CONTRACT_CONTEXT",
+        "source_contract": "BallGame.sol",
+        "target_function": "ALL",
+        "text_chunk": "pragma solidity ^0.8.0;\n\n/**\n * Contract that models a game of keep away.  The contract keeps track of an\n * integer indicating which player holds a ball.\n *\n * When a user calls {pass}, the players will pass the ball to another player if\n * they have it:\n *   - player 1 will pass to player 3\n *   - player 3 will pass back to player 1\n *   - any other player will pass to player 2\n *\n * Player 1 starts with the ball; the game is lost if player 2 ever gets the\n * ball.\n */\ncontract BallGame {\n\n    /// The current position of the ball\n    uint8 public ballPosition;\n\n    /// Initialize the ball position to 1\n    constructor() {\n        ballPosition = 1;\n    }\n    \n    /// Move the ball to the next player, based on who is currently holding it:\n    ///   - player 1 will pass to player 3\n    ///   - player 3 will pass to player 1\n    ///   - everyone else will pass to player 2\n    function pass() external {\n        if (ballPosition == 1)\n            ballPosition = 3;\n        else if (ballPosition == 3)\n            ballPosition = 1;\n        else\n            ballPosition = 2;\n    }\n\n}",
+        "formal_property": null,
+        "nl_summary": "",
+        "metadata": {
+            "function_list": [
+                "pass"
+            ],
+            "is_standard": "UNKNOWN"
+        }
+    },
+    {
+        "id": "BallGame_playerTwoNeverReceivesBall",
+        "chunk_type": "CONTRACT_INVARIANT",
+        "source_contract": "BallGame.sol",
+        "target_function": "ALL",
+        "text_chunk": "pragma solidity ^0.8.0;\n\n/**\n * Contract that models a game of keep away.  The contract keeps track of an\n * integer indicating which player holds a ball.\n *\n * When a user calls {pass}, the players will pass the ball to another player if\n * they have it:\n *   - player 1 will pass to player 3\n *   - player 3 will pass back to player 1\n *   - any other player will pass to player 2\n *\n * Player 1 starts with the ball; the game is lost if player 2 ever gets the\n * ball.\n */\ncontract BallGame {\n\n    /// The current position of the ball\n    uint8 public ballPosition;\n\n    /// Initialize the ball position to 1\n    constructor() {\n        ballPosition = 1;\n    }\n    \n    /// Move the ball to the next player, based on who is currently holding it:\n    ///   - player 1 will pass to player 3\n    ///   - player 3 will pass to player 1\n    ///   - everyone else will pass to player 2\n    function pass() external {\n        if (ballPosition == 1)\n            ballPosition = 3;\n        else if (ballPosition == 3)\n            ballPosition = 1;\n        else\n            ballPosition = 2;\n    }\n\n}",
+        "formal_property": "invariant playerTwoNeverReceivesBall() \n    ballPosition() == 1 || ballPosition() == 3;",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "playerTwoNeverReceivesBall",
+            "rule_type": "INVARIANT"
+        }
+    }
+]
