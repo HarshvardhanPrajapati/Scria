@@ -4,7 +4,7 @@
         "chunk_type": "CONTRACT_CONTEXT",
         "source_contract": "ContractA.sol",
         "target_function": "ALL",
-        "text_chunk": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.0;\n\ncontract MainContract \n{\n    address currentBidder;\n    uint256 public currentBid;\n\n    // At the entrance to `bid` address(this).balance is already increased by msg.value,\n    // so the receiver gets  `msg.value + address(this).balance` before.\n    // This reverts only if msg.value < address(this).balance\n    function bid() public payable\n    {\n        require(msg.value >= address(this).balance);\n        payable(currentBidder).transfer(address(this).balance);\n        currentBidder = msg.sender; \n        currentBid = msg.value;\n    }\n}",
+        "text_chunk": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.0;\n\ncontract MainContract \n{\n    address currentBidder;\n    uint256 public currentBid;\n\n    function bid() public payable\n    {\n        require(msg.value >= address(this).balance);\n        payable(currentBidder).transfer(address(this).balance);\n        currentBidder = msg.sender; \n        currentBid = msg.value;\n    }\n}",
         "formal_property": null,
         "nl_summary": "",
         "metadata": {
