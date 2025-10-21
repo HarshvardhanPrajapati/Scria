@@ -1,0 +1,18 @@
+[
+    {
+        "id": "Auction_contract_context",
+        "chunk_type": "CONTRACT_CONTEXT",
+        "source_contract": "Auction.sol",
+        "target_function": "ALL",
+        "text_chunk": "pragma solidity ^0.8.0;\ncontract AuctionFixed \n{\n    event BidEvent(address from);\n    function bid() public\n    {\n        emitBidEvent(msg.sender);\n    }\n\n    function emitBidEvent(address from) internal\n    {\n        emit BidEvent(from);\n    }\n}",
+        "formal_property": null,
+        "nl_summary": "",
+        "metadata": {
+            "function_list": [
+                "bid",
+                "emitBidEvent"
+            ],
+            "is_standard": "UNKNOWN"
+        }
+    }
+]

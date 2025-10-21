@@ -1,0 +1,18 @@
+[
+    {
+        "id": "PreciseBitwiseOps_contract_context",
+        "chunk_type": "CONTRACT_CONTEXT",
+        "source_contract": "PreciseBitwiseOps.sol",
+        "target_function": "ALL",
+        "text_chunk": "pragma solidity ^0.8.10;\npragma experimental ABIEncoderV2;\n\n/*\nan example of bitvector representation where every bit represent a different token. Based on :\nhttps://github.com/aave/aave-v3-core/blob/master/contracts/protocol/libraries/configuration/UserConfiguration.sol  ```\n*/\ncontract PreciseBitwiseOps{\n    uint16 public constant MAX_RESERVES_COUNT = 128;\n    string public constant INVALID_RESERVE_INDEX = '74'; // 'Invalid reserve index'\n    uint256 public data;\n\n    constructor(){\n        data = 0;\n    }\n\n    function setBorrowing(\n    uint256 reserveIndex,\n    bool borrowing\n  ) public {\n    unchecked {\n      require(reserveIndex < MAX_RESERVES_COUNT, INVALID_RESERVE_INDEX);\n      uint256 bit = 1 << (reserveIndex << 1);\n      if (borrowing) {\n        data |= bit;\n      } else {\n        data &= ~bit;\n      }\n    }\n  }\n\n  function isBorrowing(\n    uint256 reserveIndex\n  ) public view returns (bool) {\n    unchecked {\n      require(reserveIndex < MAX_RESERVES_COUNT, INVALID_RESERVE_INDEX);\n      return (data >> (reserveIndex << 1)) & 1 != 0;\n    }\n  }\n}",
+        "formal_property": null,
+        "nl_summary": "",
+        "metadata": {
+            "function_list": [
+                "setBorrowing",
+                "isBorrowing"
+            ],
+            "is_standard": "UNKNOWN"
+        }
+    }
+]
