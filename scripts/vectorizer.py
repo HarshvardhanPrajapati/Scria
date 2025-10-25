@@ -28,7 +28,7 @@ def load_and_filter_data():
     try:
         with open(PATH_TO_MASTER_INDEX,'r',encoding='utf-8') as f:
             data = json.load(f)
-            filtered_data = [record for record in data if record.get('formal_property') is not None and record.get('metdata',{}).get('rule_name') != 'sanity'] #ensures that we dont process data that doesnt provide any info abt formal_prop
+            filtered_data = [record for record in data if record.get('formal_property') is not None and record.get('metadata',{}).get('rule_name') != 'sanity'] #ensures that we dont process data that doesnt provide any info abt formal_prop
             return filtered_data
     except FileNotFoundError:
         print("master_index file doesnt exist, run master_merger.py to create one")
@@ -40,7 +40,8 @@ def load_and_filter_data():
 #fnc to clean whitespaces, imports, license etc
 def clean_code(code_chunk):
     #regex.substitute(pattern,replacement,string)
-    code_chunk = re.sub(r'(// SPDX-License-Identifier: .*|import .*|pragma .*|// OpenZeppelin.*)', '', code_chunk)
+    code_chunk = re.sub(r'/\*[\s\S]*?\*/', '', code_chunk)
+    code_chunk = re.sub(r'(//.*|import\s+[^;]*;|pragma\s+[^;]*;)', ' ', code_chunk) 
     code_chunk = re.sub(r'\s+', ' ', code_chunk).strip()
     return code_chunk
 
