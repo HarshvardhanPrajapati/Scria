@@ -14,3 +14,9 @@ broadcast/
 # IDE/OS
 .vscode/
 .DS_Store
+
+# Prompts
+prompts/
+
+# other
+temp_repo/

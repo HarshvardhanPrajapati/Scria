@@ -86,4 +86,9 @@ def top_n_metadata_retrieval(code_chunk,n):
 if __name__ == '__main__':
     code_chunk = read_contract(path_to_contract)
     similar_ones = top_n_metadata_retrieval(code_chunk,3)
+    if similar_ones:
+        print(json.dumps(similar_ones))
+    else:
+        print(json.dumps({"error": "Retrieval failed or returned empty result."}), file=sys.stderr)
+
     sys.stdout.flush()

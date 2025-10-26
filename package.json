@@ -1,7 +1,7 @@
 {
   "name": "scria",
   "version": "1.0.0",
-  "main": "file_parser.js",
+  "main": "app.js",
   "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -24,6 +24,6 @@
     "dotenv": "^17.2.2"
   },
   "bin": {
-  "scria": "./file_parser.js"
+  "scria": "./app.js"
 }
 }
