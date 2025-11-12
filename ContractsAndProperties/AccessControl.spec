@@ -72,14 +72,3 @@ rule revokeRoleEffect(env e){
 
     assert hasRoleBefore == hasRoleAfter, "modifier goes bananas";
 }
-
-
-
-
-
-
-
-
-
-
-

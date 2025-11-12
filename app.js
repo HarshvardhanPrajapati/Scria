@@ -117,8 +117,9 @@ async function main() {
     }
 
     let retrieved_templates = retrieved_templates_result.metadatas[0];
+    console.log(retrieved_templates);
 
-    intent = "Verify that when the 'increment' function is called, the public 'number' state variable never decreases, and it should always increase by exactly one.";
+    intent = "If passed empty token and burn amount arrays, burnBatch must not change token balances or address permissions.";
     const final_CVL_code = await CVL_generation(retrieved_templates, intent, 3);
     console.log(final_CVL_code);
 }

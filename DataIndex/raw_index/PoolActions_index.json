@@ -1,0 +1,18 @@
+[
+    {
+        "id": "PoolActions_contract_context",
+        "chunk_type": "CONTRACT_CONTEXT",
+        "source_contract": "PoolActions.sol",
+        "target_function": "ALL",
+        "text_chunk": "// SPDX-License-Identifier: Unlicense\n\npragma solidity 0.7.6;\npragma abicoder v2;\n\nimport '../interfaces/IUniswapV3Pool.sol';\nimport './PoolVariables.sol';\nimport \"./SafeCast.sol\";\n/// @title This library is created to conduct a variety of burn liquidity methods\nlibrary PoolActions {\n    using PoolVariables for IUniswapV3Pool;\n    using LowGasSafeMath for uint256;\n    using SafeCast for uint256;\n\n    /**\n     * @notice Withdraws liquidity in share proportion to the Optimizer's totalSupply.\n     * @param pool Uniswap V3 pool\n     * @param tickLower The lower tick of the range\n     * @param tickUpper The upper tick of the range\n     * @param totalSupply The amount of total shares in existence\n     * @param share to burn\n     * @param to Recipient of amounts\n     * @return amount0 Amount of token0 withdrawed\n     * @return amount1 Amount of token1 withdrawed\n     */\n function burnLiquidityShare(\n        IUniswapV3Pool pool,\n        int24 tickLower,\n        int24 tickUpper,\n        uint256 totalSupply,\n        uint256 share,\n        address to\n    ) internal returns (uint256 amount0, uint256 amount1) {\n        require(totalSupply > 0, \"TS\");\n        uint128 liquidityInPool = pool.positionLiquidity(tickLower, tickUpper);\n        uint256 liquidity = uint256(liquidityInPool).mul(share) / totalSupply;\n        \n        require ((liquidity < 2**128) && (totalSupply < 2**128));\n        require (share == liquidity * totalSupply/uint256(liquidityInPool));\n\n        if (liquidity > 0) {\n            (amount0, amount1) = pool.burn(tickLower, tickUpper, liquidity.toUint128());\n\n            if (amount0 > 0 || amount1 > 0) {\n            // collect liquidity share\n                (amount0, amount1) = pool.collect(\n                    to,\n                    tickLower,\n                    tickUpper,\n                    amount0.toUint128(),\n                    amount1.toUint128()\n                );\n            }\n        }\n    }\n    /**\n     * @notice Withdraws all liquidity in a range from Uniswap pool\n     * @param pool Uniswap V3 pool\n     * @param tickLower The lower tick of the range\n     * @param tickUpper The upper tick of the range\n     */\n    function burnAllLiquidity(\n        IUniswapV3Pool pool,\n        int24 tickLower,\n        int24 tickUpper\n    ) internal {\n        \n        // Burn all liquidity in this range\n        uint128 liquidity = pool.positionLiquidity(tickLower, tickUpper);\n        if (liquidity > 0) {\n            pool.burn(tickLower, tickUpper, liquidity);\n        }\n        \n         // Collect all owed tokens\n        pool.collect(\n            address(this),\n            tickLower,\n            tickUpper,\n            type(uint128).max,\n            type(uint128).max\n        );\n    }\n}",
+        "formal_property": null,
+        "nl_summary": "",
+        "metadata": {
+            "function_list": [
+                "burnLiquidityShare",
+                "burnAllLiquidity"
+            ],
+            "is_standard": "UNKNOWN"
+        }
+    }
+]
