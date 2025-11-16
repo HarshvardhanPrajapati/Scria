@@ -28,59 +28,426 @@
                 "_add",
                 "_subtract"
             ],
+            "state_variables": [
+                "fromBlock",
+                "votes",
+                "_checkpoints",
+                "_delegates",
+                "_totalSupplyCheckpoints"
+            ],
             "is_standard": "UNKNOWN"
         }
     },
     {
-        "id": "ERC20Votes_votes_solvency",
+        "id": "ERC20Votes_votes_solvency_ef3a1f03",
         "chunk_type": "CONTRACT_INVARIANT",
         "source_contract": "ERC20Votes.sol",
-        "target_function": "_burn/checkpoints/numcheckpoints",
-        "text_chunk": "function _burn(address account, uint256 amount) internal virtual override {\n        super._burn(account, amount);\n        _writeCheckpoint(_totalSupplyCheckpoints, _subtract, amount);\n    }",
-        "formal_property": "invariant votes_solvency()\n    totalSupply() >= to_uint256(totalVotes())\nfiltered { f -> f.selector != _burn(address, uint256).selector}\n{ preserved with(env e) {\n    require forall address account. numCheckpoints(account) < 1000000;",
+        "target_function": "_burn/checkpoints/numCheckpoints",
+        "text_chunk": "    function _burn(address account, uint256 amount) internal virtual override {\n        super._burn(account, amount);\n        _writeCheckpoint(_totalSupplyCheckpoints, _subtract, amount);\n    }\n\n\n    function checkpoints(address account, uint32 pos) public view virtual returns (Checkpoint memory) {\n        return _checkpoints[account][pos];\n    }\n\n\n    function numCheckpoints(address account) public view virtual returns (uint32) {\n        return SafeCast.toUint32(_checkpoints[account].length);\n    }\n",
+        "formal_property": "invariant votes_solvency()\n    totalSupply() >= to_uint256(totalVotes())\n// converted from an invariant to a rule to slightly change the logic\n// if the fromBlock is the same as before, then the number of checkpoints stays the same\n// however if the fromBlock is new than the number of checkpoints increases\n// passes, fails rule sanity because tautology check seems to be bugged\n// passes + rule sanity\ninvariant fromBlock_greaterThanEq_pos(address account, uint32 pos)\n    ckptFromBlock(account, pos) >= pos\n    filtered { f -> !f.isView }\nrule unique_checkpoints_rule(method f) {\n    env e; calldataarg args;\n    address account;\n    uint32 num_ckpts_ = numCheckpoints(account); \n    uint32 fromBlock_ = num_ckpts_ == 0 ? 0 : ckptFromBlock(account, num_ckpts_ - 1);\n\n    f(e, args);\n    uint32 _num_ckpts = numCheckpoints(account);\n    uint32 _fromBlock = _num_ckpts == 0 ? 0 : ckptFromBlock(account, _num_ckpts - 1);\n    \n    assert fromBlock_ == _fromBlock => num_ckpts_ == _num_ckpts || _num_ckpts == 1, \"same fromBlock, new checkpoint\";\n}\nfiltered { f -> f.selector != _burn(address, uint256).selector}\n",
         "nl_summary": "",
         "metadata": {
             "rule_name": "votes_solvency",
-            "rule_type": "INVARIANT"
+            "rule_type": "invariant",
+            "modifies_state": true,
+            "methods_in_block": [
+                "totalSupply",
+                "burn"
+            ],
+            "start_line": 69,
+            "end_line": 71,
+            "block_hash": "ef3a1f0370fd58aeb4f42cea69b74251"
         }
     },
     {
-        "id": "ERC20Votes_blockNum_constrains_fromBlock",
-        "chunk_type": "CONTRACT_INVARIANT",
-        "source_contract": "ERC20Votes.sol",
-        "target_function": "checkpoints/numcheckpoints",
-        "text_chunk": "function checkpoints(address account, uint32 pos) public view virtual returns (Checkpoint memory) {\n        return _checkpoints[account][pos];\n    }",
-        "formal_property": "invariant blockNum_constrains_fromBlock(address account, uint32 index, env e)\n    ckptFromBlock(account, index) < e.block.number\n    filtered { f -> !f.isView }\n{\n    preserved {\n        require index < numCheckpoints(account);",
-        "nl_summary": "",
-        "metadata": {
-            "rule_name": "blockNum_constrains_fromBlock",
-            "rule_type": "INVARIANT"
-        }
-    },
-    {
-        "id": "ERC20Votes_maxInt_constrains_numBlocks",
-        "chunk_type": "CONTRACT_INVARIANT",
-        "source_contract": "ERC20Votes.sol",
-        "target_function": "checkpoints/numcheckpoints",
-        "text_chunk": "function checkpoints(address account, uint32 pos) public view virtual returns (Checkpoint memory) {\n        return _checkpoints[account][pos];\n    }",
-        "formal_property": "invariant maxInt_constrains_numBlocks(address account)\n//     numCheckpoints(account) < 4294967295 // 2^32\n\n// can't have more checkpoints for a given account than the last from block\n// passes\ninvariant fromBlock_constrains_numBlocks(address account)\n    numCheckpoints(account) <= ckptFromBlock(account, numCheckpoints(account) - 1)\n    filtered { f -> !f.isView }\n{ preserved with(env e) {\n    require e.block.number >= ckptFromBlock(account, numCheckpoints(account) - 1);",
-        "nl_summary": "",
-        "metadata": {
-            "rule_name": "maxInt_constrains_numBlocks",
-            "rule_type": "INVARIANT"
-        }
-    },
-    {
-        "id": "ERC20Votes_fromBlock_greaterThanEq_pos",
+        "id": "ERC20Votes_blockNum_constrains_fromBlock_f48807b6",
         "chunk_type": "CONTRACT_INVARIANT",
         "source_contract": "ERC20Votes.sol",
         "target_function": "ALL",
         "text_chunk": "pragma solidity ^0.8.0;\n\nimport \"./draft-ERC20Permit.sol\";\nimport \"../../../utils/math/Math.sol\";\nimport \"../../../governance/utils/IVotes.sol\";\nimport \"../../../utils/math/SafeCast.sol\";\nimport \"../../../utils/cryptography/ECDSA.sol\";\n\nabstract contract ERC20Votes is IVotes, ERC20Permit {\n    struct Checkpoint {\n        uint32 fromBlock;\n        uint224 votes;\n    }\n    bytes32 private constant _DELEGATION_TYPEHASH = keccak256(\"Delegation(address delegatee,uint256 nonce,uint256 expiry)\");\n    mapping(address => address) private _delegates;\n    mapping(address => Checkpoint[]) private _checkpoints;\n    Checkpoint[] private _totalSupplyCheckpoints;\n\n    function checkpoints(address account, uint32 pos) public view virtual returns (Checkpoint memory) {\n        return _checkpoints[account][pos];\n    }\n    function numCheckpoints(address account) public view virtual returns (uint32) {\n        return SafeCast.toUint32(_checkpoints[account].length);\n    }\n    function delegates(address account) public view virtual override returns (address) {\n        return _delegates[account];\n    }\n    function getVotes(address account) public view virtual override returns (uint256) {\n        uint256 pos = _checkpoints[account].length;\n        return pos == 0 ? 0 : _checkpoints[account][pos - 1].votes;\n    }\n    function getPastVotes(address account, uint256 blockNumber) public view virtual override returns (uint256) {\n        require(blockNumber < block.number, \"ERC20Votes: block not yet mined\");\n        return _checkpointsLookup(_checkpoints[account], blockNumber);\n    }\n    function getPastTotalSupply(uint256 blockNumber) public view virtual override returns (uint256) {\n        require(blockNumber < block.number, \"ERC20Votes: block not yet mined\");\n        return _checkpointsLookup(_totalSupplyCheckpoints, blockNumber);\n    }\n    function _checkpointsLookup(Checkpoint[] storage ckpts, uint256 blockNumber) private view returns (uint256) {\n        uint256 high = ckpts.length;\n        uint256 low = 0;\n        while (low < high) {\n            uint256 mid = Math.average(low, high);\n            if (ckpts[mid].fromBlock > blockNumber) {\n                high = mid;\n            } else {\n                low = mid + 1;\n            }\n        }\n        return high == 0 ? 0 : ckpts[high - 1].votes;\n    }\n    function delegate(address delegatee) public virtual override {\n        _delegate(_msgSender(), delegatee);\n    }\n    function delegateBySig(\n        address delegatee,\n        uint256 nonce,\n        uint256 expiry,\n        uint8 v,\n        bytes32 r,\n        bytes32 s\n    ) public virtual override {\n        require(block.timestamp <= expiry, \"ERC20Votes: signature expired\");\n        address signer = ECDSA.recover(\n            _hashTypedDataV4(keccak256(abi.encode(_DELEGATION_TYPEHASH, delegatee, nonce, expiry))),\n            v,\n            r,\n            s\n        );\n        require(nonce == _useNonce(signer), \"ERC20Votes: invalid nonce\");\n        _delegate(signer, delegatee);\n    }\n    function _maxSupply() internal view virtual returns (uint224) {\n        return type(uint224).max;\n    }\n    function _mint(address account, uint256 amount) internal virtual override {\n        super._mint(account, amount);\n        require(totalSupply() <= _maxSupply(), \"ERC20Votes: total supply risks overflowing votes\");\n        _writeCheckpoint(_totalSupplyCheckpoints, _add, amount);\n    }\n    function _burn(address account, uint256 amount) internal virtual override {\n        super._burn(account, amount);\n        _writeCheckpoint(_totalSupplyCheckpoints, _subtract, amount);\n    }\n    function _afterTokenTransfer(\n        address from,\n        address to,\n        uint256 amount\n    ) internal virtual override {\n        super._afterTokenTransfer(from, to, amount);\n        _moveVotingPower(delegates(from), delegates(to), amount);\n    }\n    function _delegate(address delegator, address delegatee) internal virtual {\n        address currentDelegate = delegates(delegator);\n        uint256 delegatorBalance = balanceOf(delegator);\n        _delegates[delegator] = delegatee;\n        emit DelegateChanged(delegator, currentDelegate, delegatee);\n        _moveVotingPower(currentDelegate, delegatee, delegatorBalance);\n    }\n    function _moveVotingPower(\n        address src,\n        address dst,\n        uint256 amount\n    ) private {\n        if (src != dst && amount > 0) {\n            if (src != address(0)) {\n                (uint256 oldWeight, uint256 newWeight) = _writeCheckpoint(_checkpoints[src], _subtract, amount);\n                emit DelegateVotesChanged(src, oldWeight, newWeight);\n            }\n            if (dst != address(0)) {\n                (uint256 oldWeight, uint256 newWeight) = _writeCheckpoint(_checkpoints[dst], _add, amount);\n                emit DelegateVotesChanged(dst, oldWeight, newWeight);\n            }\n        }\n    }\n    function _writeCheckpoint(\n        Checkpoint[] storage ckpts,\n        function(uint256, uint256) view returns (uint256) op,\n        uint256 delta\n    ) private returns (uint256 oldWeight, uint256 newWeight) {\n        uint256 pos = ckpts.length;\n        oldWeight = pos == 0 ? 0 : ckpts[pos - 1].votes;\n        newWeight = op(oldWeight, delta);\n        if (pos > 0 && ckpts[pos - 1].fromBlock == block.number) {\n            ckpts[pos - 1].votes = SafeCast.toUint224(newWeight);\n        } else {\n            ckpts.push(Checkpoint({fromBlock: SafeCast.toUint32(block.number), votes: SafeCast.toUint224(newWeight)}));\n        }\n    }\n    function _add(uint256 a, uint256 b) private pure returns (uint256) {\n        return a + b;\n    }\n    function _subtract(uint256 a, uint256 b) private pure returns (uint256) {\n        return a - b;\n    }\n}",
-        "formal_property": "invariant fromBlock_greaterThanEq_pos(address account, uint32 pos)\n    ckptFromBlock(account, pos) >= pos\n    filtered { f -> !f.isView }\n\n// a larger index must have a larger fromBlock\n// passes + rule sanity\ninvariant fromBlock_increasing(address account, uint32 pos, uint32 pos2)\n    pos > pos2 => ckptFromBlock(account, pos) > ckptFromBlock(account, pos2)\n    filtered { f -> !f.isView }\n\n\n// converted from an invariant to a rule to slightly change the logic\n// if the fromBlock is the same as before, then the number of checkpoints stays the same\n// however if the fromBlock is new than the number of checkpoints increases\n// passes, fails rule sanity because tautology check seems to be bugged\nrule unique_checkpoints_rule(method f) {\n    env e;",
+        "formal_property": "invariant blockNum_constrains_fromBlock(address account, uint32 index, env e)\n    ckptFromBlock(account, index) < e.block.number\n    filtered { f -> !f.isView }\n",
         "nl_summary": "",
         "metadata": {
-            "rule_name": "fromBlock_greaterThanEq_pos",
-            "rule_type": "INVARIANT"
+            "rule_name": "blockNum_constrains_fromBlock",
+            "rule_type": "invariant",
+            "modifies_state": false,
+            "methods_in_block": [
+                "ckptFromBlock"
+            ],
+            "start_line": 83,
+            "end_line": 85,
+            "block_hash": "f48807b64fb6729c7179745baf923c63"
+        }
+    },
+    {
+        "id": "ERC20Votes_maxInt_constrains_numBlocks_4ddbdce5",
+        "chunk_type": "CONTRACT_INVARIANT",
+        "source_contract": "ERC20Votes.sol",
+        "target_function": "checkpoints/numCheckpoints",
+        "text_chunk": "    function checkpoints(address account, uint32 pos) public view virtual returns (Checkpoint memory) {\n        return _checkpoints[account][pos];\n    }\n\n\n    function numCheckpoints(address account) public view virtual returns (uint32) {\n        return SafeCast.toUint32(_checkpoints[account].length);\n    }\n",
+        "formal_property": "// invariant maxInt_constrains_numBlocks(address account)\n//     numCheckpoints(account) < 4294967295 // 2^32\n\n// can't have more checkpoints for a given account than the last from block\n// passes\ninvariant fromBlock_constrains_numBlocks(address account)\n    numCheckpoints(account) <= ckptFromBlock(account, numCheckpoints(account) - 1)\n    filtered { f -> !f.isView }\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "maxInt_constrains_numBlocks",
+            "rule_type": "invariant",
+            "modifies_state": false,
+            "methods_in_block": [
+                "checkpoints",
+                "numCheckpoints",
+                "ckptFromBlock"
+            ],
+            "start_line": 93,
+            "end_line": 100,
+            "block_hash": "4ddbdce5eaab40cf36605607cf8c7366"
+        }
+    },
+    {
+        "id": "ERC20Votes_above_a0637167",
+        "chunk_type": "CONTRACT_INVARIANT",
+        "source_contract": "ERC20Votes.sol",
+        "target_function": "checkpoints/numCheckpoints",
+        "text_chunk": "    function checkpoints(address account, uint32 pos) public view virtual returns (Checkpoint memory) {\n        return _checkpoints[account][pos];\n    }\n\n\n    function numCheckpoints(address account) public view virtual returns (uint32) {\n        return SafeCast.toUint32(_checkpoints[account].length);\n    }\n",
+        "formal_property": "    require e.block.number >= ckptFromBlock(account, numCheckpoints(account) - 1); // this should be true from the invariant above!!\n}}\n\n// for any given checkpoint, the fromBlock must be greater than the checkpoint\n// this proves the above invariant in combination with the below invariant\n// if checkpoint has a greater fromBlock than the last, and the FromBlock is always greater than the pos. \n// Then the number of positions must be less than the currentFromBlock\n// ^note that the tool is assuming it's possible for the starting fromBlock to be 0 or anything, and does not know the current starting block\n// converted from an invariant to a rule to slightly change the logic\n// if the fromBlock is the same as before, then the number of checkpoints stays the same\n// however if the fromBlock is new than the number of checkpoints increases\n// passes, fails rule sanity because tautology check seems to be bugged\n// passes + rule sanity\ninvariant fromBlock_greaterThanEq_pos(address account, uint32 pos)\n    ckptFromBlock(account, pos) >= pos\n    filtered { f -> !f.isView }\nrule unique_checkpoints_rule(method f) {\n    env e; calldataarg args;\n    address account;\n    uint32 num_ckpts_ = numCheckpoints(account); \n    uint32 fromBlock_ = num_ckpts_ == 0 ? 0 : ckptFromBlock(account, num_ckpts_ - 1);\n    f(e, args);\n    uint32 _num_ckpts = numCheckpoints(account);\n    uint32 _fromBlock = _num_ckpts == 0 ? 0 : ckptFromBlock(account, _num_ckpts - 1);\n    \n    assert fromBlock_ == _fromBlock => num_ckpts_ == _num_ckpts || _num_ckpts == 1, \"same fromBlock, new checkpoint\";\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "above",
+            "rule_type": "invariant",
+            "modifies_state": false,
+            "methods_in_block": [
+                "numCheckpoints",
+                "ckptFromBlock"
+            ],
+            "start_line": 102,
+            "end_line": 113,
+            "block_hash": "a0637167012d7e07da0c63655445aa99"
+        }
+    },
+    {
+        "id": "ERC20Votes_fromBlock_increasing_e1c81c89",
+        "chunk_type": "CONTRACT_INVARIANT",
+        "source_contract": "ERC20Votes.sol",
+        "target_function": "ALL",
+        "text_chunk": "pragma solidity ^0.8.0;\n\nimport \"./draft-ERC20Permit.sol\";\nimport \"../../../utils/math/Math.sol\";\nimport \"../../../governance/utils/IVotes.sol\";\nimport \"../../../utils/math/SafeCast.sol\";\nimport \"../../../utils/cryptography/ECDSA.sol\";\n\nabstract contract ERC20Votes is IVotes, ERC20Permit {\n    struct Checkpoint {\n        uint32 fromBlock;\n        uint224 votes;\n    }\n    bytes32 private constant _DELEGATION_TYPEHASH = keccak256(\"Delegation(address delegatee,uint256 nonce,uint256 expiry)\");\n    mapping(address => address) private _delegates;\n    mapping(address => Checkpoint[]) private _checkpoints;\n    Checkpoint[] private _totalSupplyCheckpoints;\n\n    function checkpoints(address account, uint32 pos) public view virtual returns (Checkpoint memory) {\n        return _checkpoints[account][pos];\n    }\n    function numCheckpoints(address account) public view virtual returns (uint32) {\n        return SafeCast.toUint32(_checkpoints[account].length);\n    }\n    function delegates(address account) public view virtual override returns (address) {\n        return _delegates[account];\n    }\n    function getVotes(address account) public view virtual override returns (uint256) {\n        uint256 pos = _checkpoints[account].length;\n        return pos == 0 ? 0 : _checkpoints[account][pos - 1].votes;\n    }\n    function getPastVotes(address account, uint256 blockNumber) public view virtual override returns (uint256) {\n        require(blockNumber < block.number, \"ERC20Votes: block not yet mined\");\n        return _checkpointsLookup(_checkpoints[account], blockNumber);\n    }\n    function getPastTotalSupply(uint256 blockNumber) public view virtual override returns (uint256) {\n        require(blockNumber < block.number, \"ERC20Votes: block not yet mined\");\n        return _checkpointsLookup(_totalSupplyCheckpoints, blockNumber);\n    }\n    function _checkpointsLookup(Checkpoint[] storage ckpts, uint256 blockNumber) private view returns (uint256) {\n        uint256 high = ckpts.length;\n        uint256 low = 0;\n        while (low < high) {\n            uint256 mid = Math.average(low, high);\n            if (ckpts[mid].fromBlock > blockNumber) {\n                high = mid;\n            } else {\n                low = mid + 1;\n            }\n        }\n        return high == 0 ? 0 : ckpts[high - 1].votes;\n    }\n    function delegate(address delegatee) public virtual override {\n        _delegate(_msgSender(), delegatee);\n    }\n    function delegateBySig(\n        address delegatee,\n        uint256 nonce,\n        uint256 expiry,\n        uint8 v,\n        bytes32 r,\n        bytes32 s\n    ) public virtual override {\n        require(block.timestamp <= expiry, \"ERC20Votes: signature expired\");\n        address signer = ECDSA.recover(\n            _hashTypedDataV4(keccak256(abi.encode(_DELEGATION_TYPEHASH, delegatee, nonce, expiry))),\n            v,\n            r,\n            s\n        );\n        require(nonce == _useNonce(signer), \"ERC20Votes: invalid nonce\");\n        _delegate(signer, delegatee);\n    }\n    function _maxSupply() internal view virtual returns (uint224) {\n        return type(uint224).max;\n    }\n    function _mint(address account, uint256 amount) internal virtual override {\n        super._mint(account, amount);\n        require(totalSupply() <= _maxSupply(), \"ERC20Votes: total supply risks overflowing votes\");\n        _writeCheckpoint(_totalSupplyCheckpoints, _add, amount);\n    }\n    function _burn(address account, uint256 amount) internal virtual override {\n        super._burn(account, amount);\n        _writeCheckpoint(_totalSupplyCheckpoints, _subtract, amount);\n    }\n    function _afterTokenTransfer(\n        address from,\n        address to,\n        uint256 amount\n    ) internal virtual override {\n        super._afterTokenTransfer(from, to, amount);\n        _moveVotingPower(delegates(from), delegates(to), amount);\n    }\n    function _delegate(address delegator, address delegatee) internal virtual {\n        address currentDelegate = delegates(delegator);\n        uint256 delegatorBalance = balanceOf(delegator);\n        _delegates[delegator] = delegatee;\n        emit DelegateChanged(delegator, currentDelegate, delegatee);\n        _moveVotingPower(currentDelegate, delegatee, delegatorBalance);\n    }\n    function _moveVotingPower(\n        address src,\n        address dst,\n        uint256 amount\n    ) private {\n        if (src != dst && amount > 0) {\n            if (src != address(0)) {\n                (uint256 oldWeight, uint256 newWeight) = _writeCheckpoint(_checkpoints[src], _subtract, amount);\n                emit DelegateVotesChanged(src, oldWeight, newWeight);\n            }\n            if (dst != address(0)) {\n                (uint256 oldWeight, uint256 newWeight) = _writeCheckpoint(_checkpoints[dst], _add, amount);\n                emit DelegateVotesChanged(dst, oldWeight, newWeight);\n            }\n        }\n    }\n    function _writeCheckpoint(\n        Checkpoint[] storage ckpts,\n        function(uint256, uint256) view returns (uint256) op,\n        uint256 delta\n    ) private returns (uint256 oldWeight, uint256 newWeight) {\n        uint256 pos = ckpts.length;\n        oldWeight = pos == 0 ? 0 : ckpts[pos - 1].votes;\n        newWeight = op(oldWeight, delta);\n        if (pos > 0 && ckpts[pos - 1].fromBlock == block.number) {\n            ckpts[pos - 1].votes = SafeCast.toUint224(newWeight);\n        } else {\n            ckpts.push(Checkpoint({fromBlock: SafeCast.toUint32(block.number), votes: SafeCast.toUint224(newWeight)}));\n        }\n    }\n    function _add(uint256 a, uint256 b) private pure returns (uint256) {\n        return a + b;\n    }\n    function _subtract(uint256 a, uint256 b) private pure returns (uint256) {\n        return a - b;\n    }\n}",
+        "formal_property": "invariant fromBlock_increasing(address account, uint32 pos, uint32 pos2)\n    pos > pos2 => ckptFromBlock(account, pos) > ckptFromBlock(account, pos2)\n    filtered { f -> !f.isView }\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "fromBlock_increasing",
+            "rule_type": "invariant",
+            "modifies_state": false,
+            "methods_in_block": [
+                "ckptFromBlock"
+            ],
+            "start_line": 117,
+            "end_line": 119,
+            "block_hash": "e1c81c89eeac56149d50f5152c2f72d0"
+        }
+    },
+    {
+        "id": "ERC20Votes_to_9694f5a3",
+        "chunk_type": "CONTRACT_INVARIANT",
+        "source_contract": "ERC20Votes.sol",
+        "target_function": "checkpoints/numCheckpoints",
+        "text_chunk": "    function checkpoints(address account, uint32 pos) public view virtual returns (Checkpoint memory) {\n        return _checkpoints[account][pos];\n    }\n\n\n    function numCheckpoints(address account) public view virtual returns (uint32) {\n        return SafeCast.toUint32(_checkpoints[account].length);\n    }\n",
+        "formal_property": "// converted from an invariant to a rule to slightly change the logic\n// if the fromBlock is the same as before, then the number of checkpoints stays the same\n// however if the fromBlock is new than the number of checkpoints increases\n// passes, fails rule sanity because tautology check seems to be bugged\n// passes + rule sanity\ninvariant fromBlock_greaterThanEq_pos(address account, uint32 pos)\n    ckptFromBlock(account, pos) >= pos\n    filtered { f -> !f.isView }\nrule unique_checkpoints_rule(method f) {\n    env e; calldataarg args;\n    address account;\n    uint32 num_ckpts_ = numCheckpoints(account); \n    uint32 fromBlock_ = num_ckpts_ == 0 ? 0 : ckptFromBlock(account, num_ckpts_ - 1);\n\n    f(e, args);\n    uint32 _num_ckpts = numCheckpoints(account);\n    uint32 _fromBlock = _num_ckpts == 0 ? 0 : ckptFromBlock(account, _num_ckpts - 1);\n    \n    assert fromBlock_ == _fromBlock => num_ckpts_ == _num_ckpts || _num_ckpts == 1, \"same fromBlock, new checkpoint\";\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "to",
+            "rule_type": "invariant",
+            "modifies_state": false,
+            "methods_in_block": [
+                "checkpoints",
+                "numCheckpoints",
+                "ckptFromBlock"
+            ],
+            "start_line": 122,
+            "end_line": 139,
+            "block_hash": "9694f5a3d1451f00b5933534bdb22770"
+        }
+    },
+    {
+        "id": "ERC20Votes_sanity_07a709f4",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC20Votes.sol",
+        "target_function": "ALL",
+        "text_chunk": "pragma solidity ^0.8.0;\n\nimport \"./draft-ERC20Permit.sol\";\nimport \"../../../utils/math/Math.sol\";\nimport \"../../../governance/utils/IVotes.sol\";\nimport \"../../../utils/math/SafeCast.sol\";\nimport \"../../../utils/cryptography/ECDSA.sol\";\n\nabstract contract ERC20Votes is IVotes, ERC20Permit {\n    struct Checkpoint {\n        uint32 fromBlock;\n        uint224 votes;\n    }\n    bytes32 private constant _DELEGATION_TYPEHASH = keccak256(\"Delegation(address delegatee,uint256 nonce,uint256 expiry)\");\n    mapping(address => address) private _delegates;\n    mapping(address => Checkpoint[]) private _checkpoints;\n    Checkpoint[] private _totalSupplyCheckpoints;\n\n    function checkpoints(address account, uint32 pos) public view virtual returns (Checkpoint memory) {\n        return _checkpoints[account][pos];\n    }\n    function numCheckpoints(address account) public view virtual returns (uint32) {\n        return SafeCast.toUint32(_checkpoints[account].length);\n    }\n    function delegates(address account) public view virtual override returns (address) {\n        return _delegates[account];\n    }\n    function getVotes(address account) public view virtual override returns (uint256) {\n        uint256 pos = _checkpoints[account].length;\n        return pos == 0 ? 0 : _checkpoints[account][pos - 1].votes;\n    }\n    function getPastVotes(address account, uint256 blockNumber) public view virtual override returns (uint256) {\n        require(blockNumber < block.number, \"ERC20Votes: block not yet mined\");\n        return _checkpointsLookup(_checkpoints[account], blockNumber);\n    }\n    function getPastTotalSupply(uint256 blockNumber) public view virtual override returns (uint256) {\n        require(blockNumber < block.number, \"ERC20Votes: block not yet mined\");\n        return _checkpointsLookup(_totalSupplyCheckpoints, blockNumber);\n    }\n    function _checkpointsLookup(Checkpoint[] storage ckpts, uint256 blockNumber) private view returns (uint256) {\n        uint256 high = ckpts.length;\n        uint256 low = 0;\n        while (low < high) {\n            uint256 mid = Math.average(low, high);\n            if (ckpts[mid].fromBlock > blockNumber) {\n                high = mid;\n            } else {\n                low = mid + 1;\n            }\n        }\n        return high == 0 ? 0 : ckpts[high - 1].votes;\n    }\n    function delegate(address delegatee) public virtual override {\n        _delegate(_msgSender(), delegatee);\n    }\n    function delegateBySig(\n        address delegatee,\n        uint256 nonce,\n        uint256 expiry,\n        uint8 v,\n        bytes32 r,\n        bytes32 s\n    ) public virtual override {\n        require(block.timestamp <= expiry, \"ERC20Votes: signature expired\");\n        address signer = ECDSA.recover(\n            _hashTypedDataV4(keccak256(abi.encode(_DELEGATION_TYPEHASH, delegatee, nonce, expiry))),\n            v,\n            r,\n            s\n        );\n        require(nonce == _useNonce(signer), \"ERC20Votes: invalid nonce\");\n        _delegate(signer, delegatee);\n    }\n    function _maxSupply() internal view virtual returns (uint224) {\n        return type(uint224).max;\n    }\n    function _mint(address account, uint256 amount) internal virtual override {\n        super._mint(account, amount);\n        require(totalSupply() <= _maxSupply(), \"ERC20Votes: total supply risks overflowing votes\");\n        _writeCheckpoint(_totalSupplyCheckpoints, _add, amount);\n    }\n    function _burn(address account, uint256 amount) internal virtual override {\n        super._burn(account, amount);\n        _writeCheckpoint(_totalSupplyCheckpoints, _subtract, amount);\n    }\n    function _afterTokenTransfer(\n        address from,\n        address to,\n        uint256 amount\n    ) internal virtual override {\n        super._afterTokenTransfer(from, to, amount);\n        _moveVotingPower(delegates(from), delegates(to), amount);\n    }\n    function _delegate(address delegator, address delegatee) internal virtual {\n        address currentDelegate = delegates(delegator);\n        uint256 delegatorBalance = balanceOf(delegator);\n        _delegates[delegator] = delegatee;\n        emit DelegateChanged(delegator, currentDelegate, delegatee);\n        _moveVotingPower(currentDelegate, delegatee, delegatorBalance);\n    }\n    function _moveVotingPower(\n        address src,\n        address dst,\n        uint256 amount\n    ) private {\n        if (src != dst && amount > 0) {\n            if (src != address(0)) {\n                (uint256 oldWeight, uint256 newWeight) = _writeCheckpoint(_checkpoints[src], _subtract, amount);\n                emit DelegateVotesChanged(src, oldWeight, newWeight);\n            }\n            if (dst != address(0)) {\n                (uint256 oldWeight, uint256 newWeight) = _writeCheckpoint(_checkpoints[dst], _add, amount);\n                emit DelegateVotesChanged(dst, oldWeight, newWeight);\n            }\n        }\n    }\n    function _writeCheckpoint(\n        Checkpoint[] storage ckpts,\n        function(uint256, uint256) view returns (uint256) op,\n        uint256 delta\n    ) private returns (uint256 oldWeight, uint256 newWeight) {\n        uint256 pos = ckpts.length;\n        oldWeight = pos == 0 ? 0 : ckpts[pos - 1].votes;\n        newWeight = op(oldWeight, delta);\n        if (pos > 0 && ckpts[pos - 1].fromBlock == block.number) {\n            ckpts[pos - 1].votes = SafeCast.toUint224(newWeight);\n        } else {\n            ckpts.push(Checkpoint({fromBlock: SafeCast.toUint32(block.number), votes: SafeCast.toUint224(newWeight)}));\n        }\n    }\n    function _add(uint256 a, uint256 b) private pure returns (uint256) {\n        return a + b;\n    }\n    function _subtract(uint256 a, uint256 b) private pure returns (uint256) {\n        return a - b;\n    }\n}",
+        "formal_property": "// passes + rule sanity\ninvariant fromBlock_greaterThanEq_pos(address account, uint32 pos)\n    ckptFromBlock(account, pos) >= pos\n    filtered { f -> !f.isView }\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "sanity",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "ckptFromBlock"
+            ],
+            "start_line": 110,
+            "end_line": 113,
+            "block_hash": "07a709f42611546f03ef3911764da22f"
+        }
+    },
+    {
+        "id": "ERC20Votes_sanity_4df4d9dc",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC20Votes.sol",
+        "target_function": "ALL",
+        "text_chunk": "pragma solidity ^0.8.0;\n\nimport \"./draft-ERC20Permit.sol\";\nimport \"../../../utils/math/Math.sol\";\nimport \"../../../governance/utils/IVotes.sol\";\nimport \"../../../utils/math/SafeCast.sol\";\nimport \"../../../utils/cryptography/ECDSA.sol\";\n\nabstract contract ERC20Votes is IVotes, ERC20Permit {\n    struct Checkpoint {\n        uint32 fromBlock;\n        uint224 votes;\n    }\n    bytes32 private constant _DELEGATION_TYPEHASH = keccak256(\"Delegation(address delegatee,uint256 nonce,uint256 expiry)\");\n    mapping(address => address) private _delegates;\n    mapping(address => Checkpoint[]) private _checkpoints;\n    Checkpoint[] private _totalSupplyCheckpoints;\n\n    function checkpoints(address account, uint32 pos) public view virtual returns (Checkpoint memory) {\n        return _checkpoints[account][pos];\n    }\n    function numCheckpoints(address account) public view virtual returns (uint32) {\n        return SafeCast.toUint32(_checkpoints[account].length);\n    }\n    function delegates(address account) public view virtual override returns (address) {\n        return _delegates[account];\n    }\n    function getVotes(address account) public view virtual override returns (uint256) {\n        uint256 pos = _checkpoints[account].length;\n        return pos == 0 ? 0 : _checkpoints[account][pos - 1].votes;\n    }\n    function getPastVotes(address account, uint256 blockNumber) public view virtual override returns (uint256) {\n        require(blockNumber < block.number, \"ERC20Votes: block not yet mined\");\n        return _checkpointsLookup(_checkpoints[account], blockNumber);\n    }\n    function getPastTotalSupply(uint256 blockNumber) public view virtual override returns (uint256) {\n        require(blockNumber < block.number, \"ERC20Votes: block not yet mined\");\n        return _checkpointsLookup(_totalSupplyCheckpoints, blockNumber);\n    }\n    function _checkpointsLookup(Checkpoint[] storage ckpts, uint256 blockNumber) private view returns (uint256) {\n        uint256 high = ckpts.length;\n        uint256 low = 0;\n        while (low < high) {\n            uint256 mid = Math.average(low, high);\n            if (ckpts[mid].fromBlock > blockNumber) {\n                high = mid;\n            } else {\n                low = mid + 1;\n            }\n        }\n        return high == 0 ? 0 : ckpts[high - 1].votes;\n    }\n    function delegate(address delegatee) public virtual override {\n        _delegate(_msgSender(), delegatee);\n    }\n    function delegateBySig(\n        address delegatee,\n        uint256 nonce,\n        uint256 expiry,\n        uint8 v,\n        bytes32 r,\n        bytes32 s\n    ) public virtual override {\n        require(block.timestamp <= expiry, \"ERC20Votes: signature expired\");\n        address signer = ECDSA.recover(\n            _hashTypedDataV4(keccak256(abi.encode(_DELEGATION_TYPEHASH, delegatee, nonce, expiry))),\n            v,\n            r,\n            s\n        );\n        require(nonce == _useNonce(signer), \"ERC20Votes: invalid nonce\");\n        _delegate(signer, delegatee);\n    }\n    function _maxSupply() internal view virtual returns (uint224) {\n        return type(uint224).max;\n    }\n    function _mint(address account, uint256 amount) internal virtual override {\n        super._mint(account, amount);\n        require(totalSupply() <= _maxSupply(), \"ERC20Votes: total supply risks overflowing votes\");\n        _writeCheckpoint(_totalSupplyCheckpoints, _add, amount);\n    }\n    function _burn(address account, uint256 amount) internal virtual override {\n        super._burn(account, amount);\n        _writeCheckpoint(_totalSupplyCheckpoints, _subtract, amount);\n    }\n    function _afterTokenTransfer(\n        address from,\n        address to,\n        uint256 amount\n    ) internal virtual override {\n        super._afterTokenTransfer(from, to, amount);\n        _moveVotingPower(delegates(from), delegates(to), amount);\n    }\n    function _delegate(address delegator, address delegatee) internal virtual {\n        address currentDelegate = delegates(delegator);\n        uint256 delegatorBalance = balanceOf(delegator);\n        _delegates[delegator] = delegatee;\n        emit DelegateChanged(delegator, currentDelegate, delegatee);\n        _moveVotingPower(currentDelegate, delegatee, delegatorBalance);\n    }\n    function _moveVotingPower(\n        address src,\n        address dst,\n        uint256 amount\n    ) private {\n        if (src != dst && amount > 0) {\n            if (src != address(0)) {\n                (uint256 oldWeight, uint256 newWeight) = _writeCheckpoint(_checkpoints[src], _subtract, amount);\n                emit DelegateVotesChanged(src, oldWeight, newWeight);\n            }\n            if (dst != address(0)) {\n                (uint256 oldWeight, uint256 newWeight) = _writeCheckpoint(_checkpoints[dst], _add, amount);\n                emit DelegateVotesChanged(dst, oldWeight, newWeight);\n            }\n        }\n    }\n    function _writeCheckpoint(\n        Checkpoint[] storage ckpts,\n        function(uint256, uint256) view returns (uint256) op,\n        uint256 delta\n    ) private returns (uint256 oldWeight, uint256 newWeight) {\n        uint256 pos = ckpts.length;\n        oldWeight = pos == 0 ? 0 : ckpts[pos - 1].votes;\n        newWeight = op(oldWeight, delta);\n        if (pos > 0 && ckpts[pos - 1].fromBlock == block.number) {\n            ckpts[pos - 1].votes = SafeCast.toUint224(newWeight);\n        } else {\n            ckpts.push(Checkpoint({fromBlock: SafeCast.toUint32(block.number), votes: SafeCast.toUint224(newWeight)}));\n        }\n    }\n    function _add(uint256 a, uint256 b) private pure returns (uint256) {\n        return a + b;\n    }\n    function _subtract(uint256 a, uint256 b) private pure returns (uint256) {\n        return a - b;\n    }\n}",
+        "formal_property": "// passes + rule sanity\ninvariant fromBlock_increasing(address account, uint32 pos, uint32 pos2)\n    pos > pos2 => ckptFromBlock(account, pos) > ckptFromBlock(account, pos2)\n    filtered { f -> !f.isView }\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "sanity",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "ckptFromBlock"
+            ],
+            "start_line": 116,
+            "end_line": 119,
+            "block_hash": "4df4d9dce6aeb5c6b5b5719912c9764b"
+        }
+    },
+    {
+        "id": "ERC20Votes_to_7daf69b4",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC20Votes.sol",
+        "target_function": "checkpoints/numCheckpoints",
+        "text_chunk": "    function checkpoints(address account, uint32 pos) public view virtual returns (Checkpoint memory) {\n        return _checkpoints[account][pos];\n    }\n\n\n    function numCheckpoints(address account) public view virtual returns (uint32) {\n        return SafeCast.toUint32(_checkpoints[account].length);\n    }\n",
+        "formal_property": "// converted from an invariant to a rule to slightly change the logic\n// if the fromBlock is the same as before, then the number of checkpoints stays the same\n// however if the fromBlock is new than the number of checkpoints increases\n// passes, fails rule sanity because tautology check seems to be bugged\n// passes + rule sanity\ninvariant fromBlock_greaterThanEq_pos(address account, uint32 pos)\n    ckptFromBlock(account, pos) >= pos\n    filtered { f -> !f.isView }\nrule unique_checkpoints_rule(method f) {\n    env e; calldataarg args;\n    address account;\n    uint32 num_ckpts_ = numCheckpoints(account); \n    uint32 fromBlock_ = num_ckpts_ == 0 ? 0 : ckptFromBlock(account, num_ckpts_ - 1);\n\n    f(e, args);\n    uint32 _num_ckpts = numCheckpoints(account);\n    uint32 _fromBlock = _num_ckpts == 0 ? 0 : ckptFromBlock(account, _num_ckpts - 1);\n    \n    assert fromBlock_ == _fromBlock => num_ckpts_ == _num_ckpts || _num_ckpts == 1, \"same fromBlock, new checkpoint\";\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "to",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "checkpoints",
+                "numCheckpoints",
+                "ckptFromBlock"
+            ],
+            "start_line": 122,
+            "end_line": 139,
+            "block_hash": "7daf69b4957eebb75b7c5e63aa896c5b"
+        }
+    },
+    {
+        "id": "ERC20Votes_sanity_b65ab4a0",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC20Votes.sol",
+        "target_function": "checkpoints/delegate/delegates/getVotes/numCheckpoints",
+        "text_chunk": "    function checkpoints(address account, uint32 pos) public view virtual returns (Checkpoint memory) {\n        return _checkpoints[account][pos];\n    }\n\n\n    function delegate(address delegatee) public virtual override {\n        _delegate(_msgSender(), delegatee);\n    }\n\n\n    function delegates(address account) public view virtual override returns (address) {\n        return _delegates[account];\n    }\n\n\n    function getVotes(address account) public view virtual override returns (uint256) {\n        uint256 pos = _checkpoints[account].length;\n        return pos == 0 ? 0 : _checkpoints[account][pos - 1].votes;\n    }\n\n\n    function numCheckpoints(address account) public view virtual returns (uint32) {\n        return SafeCast.toUint32(_checkpoints[account].length);\n    }\n",
+        "formal_property": "// passes + rule sanity (- a bad tautology check)\n// converted from an invariant to a rule to slightly change the logic\n// if the fromBlock is the same as before, then the number of checkpoints stays the same\n// however if the fromBlock is new than the number of checkpoints increases\n// passes, fails rule sanity because tautology check seems to be bugged\n// passes + rule sanity\ninvariant fromBlock_greaterThanEq_pos(address account, uint32 pos)\n    ckptFromBlock(account, pos) >= pos\n    filtered { f -> !f.isView }\nrule unique_checkpoints_rule(method f) {\n    env e; calldataarg args;\n    address account;\n    uint32 num_ckpts_ = numCheckpoints(account); \n    uint32 fromBlock_ = num_ckpts_ == 0 ? 0 : ckptFromBlock(account, num_ckpts_ - 1);\n\n    f(e, args);\n    uint32 _num_ckpts = numCheckpoints(account);\n    uint32 _fromBlock = _num_ckpts == 0 ? 0 : ckptFromBlock(account, _num_ckpts - 1);\n    \n    assert fromBlock_ == _fromBlock => num_ckpts_ == _num_ckpts || _num_ckpts == 1, \"same fromBlock, new checkpoint\";\n}\nrule transfer_safe() {\n    env e;\n    uint256 amount;\n    address a; address b;\n    require delegates(a) != delegates(b); // confirmed if they both delegate to the same person then transfer keeps the votes the same\n    require numCheckpoints(delegates(a)) < 1000000;\n    require numCheckpoints(delegates(b)) < 1000000;\n    uint256 votesA_pre = getVotes(delegates(a));\n    uint256 votesB_pre = getVotes(delegates(b));\n    uint224 totalVotes_pre = totalVotes();\n    transferFrom(e, a, b, amount);\n    uint224 totalVotes_post = totalVotes();\n    uint256 votesA_post = getVotes(delegates(a));\n    uint256 votesB_post = getVotes(delegates(b));\n    // if an account that has not delegated transfers balance to an account that has, it will increase the total supply of votes\n    assert totalVotes_pre == totalVotes_post, \"transfer changed total supply\";\n    assert delegates(a) != 0 => votesA_pre - votesA_post == amount, \"A lost the wrong amount of votes\";\n    assert delegates(b) != 0 => votesB_post - votesB_pre == amount, \"B lost the wrong amount of votes\";\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "sanity",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "numCheckpoints",
+                "delegates",
+                "getVotes",
+                "delegate"
+            ],
+            "start_line": 144,
+            "end_line": 164,
+            "block_hash": "b65ab4a074ba86f092ccf9e428fd3703"
+        }
+    },
+    {
+        "id": "ERC20Votes_delegates_safe_a446a886",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC20Votes.sol",
+        "target_function": "_delegate/checkpoints/delegate/delegateBySig/delegates/numCheckpoints",
+        "text_chunk": "    function _delegate(address delegator, address delegatee) internal virtual {\n        address currentDelegate = delegates(delegator);\n        uint256 delegatorBalance = balanceOf(delegator);\n        _delegates[delegator] = delegatee;\n        emit DelegateChanged(delegator, currentDelegate, delegatee);\n        _moveVotingPower(currentDelegate, delegatee, delegatorBalance);\n    }\n\n\n    function checkpoints(address account, uint32 pos) public view virtual returns (Checkpoint memory) {\n        return _checkpoints[account][pos];\n    }\n\n\n    function delegate(address delegatee) public virtual override {\n        _delegate(_msgSender(), delegatee);\n    }\n\n\n    function delegateBySig(\n        address delegatee,\n        uint256 nonce,\n        uint256 expiry,\n        uint8 v,\n        bytes32 r,\n        bytes32 s\n    ) public virtual override {\n        require(block.timestamp <= expiry, \"ERC20Votes: signature expired\");\n        address signer = ECDSA.recover(\n            _hashTypedDataV4(keccak256(abi.encode(_DELEGATION_TYPEHASH, delegatee, nonce, expiry))),\n            v,\n            r,\n            s\n        );\n        require(nonce == _useNonce(signer), \"ERC20Votes: invalid nonce\");\n        _delegate(signer, delegatee);\n    }\n\n\n    function delegates(address account) public view virtual override returns (address) {\n        return _delegates[account];\n    }\n\n\n    function numCheckpoints(address account) public view virtual returns (uint32) {\n        return SafeCast.toUint32(_checkpoints[account].length);\n    }\n",
+        "formal_property": "rule delegates_safe(method f) filtered {f -> (f.selector != delegate(address).selector &&\n// converted from an invariant to a rule to slightly change the logic\n// if the fromBlock is the same as before, then the number of checkpoints stays the same\n// however if the fromBlock is new than the number of checkpoints increases\n// passes, fails rule sanity because tautology check seems to be bugged\n// passes + rule sanity\ninvariant fromBlock_greaterThanEq_pos(address account, uint32 pos)\n    ckptFromBlock(account, pos) >= pos\n    filtered { f -> !f.isView }\nrule unique_checkpoints_rule(method f) {\n    env e; calldataarg args;\n    address account;\n    uint32 num_ckpts_ = numCheckpoints(account); \n    uint32 fromBlock_ = num_ckpts_ == 0 ? 0 : ckptFromBlock(account, num_ckpts_ - 1);\n\n    f(e, args);\n    uint32 _num_ckpts = numCheckpoints(account);\n    uint32 _fromBlock = _num_ckpts == 0 ? 0 : ckptFromBlock(account, _num_ckpts - 1);\n    \n    assert fromBlock_ == _fromBlock => num_ckpts_ == _num_ckpts || _num_ckpts == 1, \"same fromBlock, new checkpoint\";\n}\n                                                f.selector != _delegate(address, address).selector &&\n                                                f.selector != delegateBySig(address, uint256, uint256, uint8, bytes32, bytes32).selector) }\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "delegates_safe",
+            "rule_type": "rule",
+            "modifies_state": true,
+            "methods_in_block": [
+                "delegates",
+                "delegate",
+                "_delegate"
+            ],
+            "start_line": 167,
+            "end_line": 169,
+            "block_hash": "a446a886018ffc038a92e565136618a5"
+        }
+    },
+    {
+        "id": "ERC20Votes_sanity_4f85e57d",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC20Votes.sol",
+        "target_function": "_delegate/checkpoints/delegate/delegates/getVotes/numCheckpoints",
+        "text_chunk": "    function _delegate(address delegator, address delegatee) internal virtual {\n        address currentDelegate = delegates(delegator);\n        uint256 delegatorBalance = balanceOf(delegator);\n        _delegates[delegator] = delegatee;\n        emit DelegateChanged(delegator, currentDelegate, delegatee);\n        _moveVotingPower(currentDelegate, delegatee, delegatorBalance);\n    }\n\n\n    function checkpoints(address account, uint32 pos) public view virtual returns (Checkpoint memory) {\n        return _checkpoints[account][pos];\n    }\n\n\n    function delegate(address delegatee) public virtual override {\n        _delegate(_msgSender(), delegatee);\n    }\n\n\n    function delegates(address account) public view virtual override returns (address) {\n        return _delegates[account];\n    }\n\n\n    function getVotes(address account) public view virtual override returns (uint256) {\n        uint256 pos = _checkpoints[account].length;\n        return pos == 0 ? 0 : _checkpoints[account][pos - 1].votes;\n    }\n\n\n    function numCheckpoints(address account) public view virtual returns (uint32) {\n        return SafeCast.toUint32(_checkpoints[account].length);\n    }\n",
+        "formal_property": "// passes + rule sanity\nrule delegatee_receives_votes() {\n    env e; \n    address delegator; address delegatee;\n// converted from an invariant to a rule to slightly change the logic\n// if the fromBlock is the same as before, then the number of checkpoints stays the same\n// however if the fromBlock is new than the number of checkpoints increases\n// passes, fails rule sanity because tautology check seems to be bugged\ninvariant fromBlock_greaterThanEq_pos(address account, uint32 pos)\n    ckptFromBlock(account, pos) >= pos\n    filtered { f -> !f.isView }\nrule unique_checkpoints_rule(method f) {\n    env e; calldataarg args;\n    address account;\n    uint32 num_ckpts_ = numCheckpoints(account); \n    uint32 fromBlock_ = num_ckpts_ == 0 ? 0 : ckptFromBlock(account, num_ckpts_ - 1);\n\n    f(e, args);\n    uint32 _num_ckpts = numCheckpoints(account);\n    uint32 _fromBlock = _num_ckpts == 0 ? 0 : ckptFromBlock(account, _num_ckpts - 1);\n    \n    assert fromBlock_ == _fromBlock => num_ckpts_ == _num_ckpts || _num_ckpts == 1, \"same fromBlock, new checkpoint\";\n}\n    require delegates(delegator) != delegatee;\n    require delegatee != 0x0;\n    uint256 delegator_bal = balanceOf(e, delegator);\n    uint256 votes_= getVotes(delegatee);\n    _delegate(e, delegator, delegatee);\n    require lastIndex(delegatee) < 1000000;\n    uint256 _votes = getVotes(delegatee);\n    assert _votes == votes_ + delegator_bal, \"delegatee did not receive votes\";\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "sanity",
+            "rule_type": "rule",
+            "modifies_state": true,
+            "methods_in_block": [
+                "delegates",
+                "getVotes",
+                "delegate",
+                "_delegate"
+            ],
+            "start_line": 179,
+            "end_line": 198,
+            "block_hash": "4f85e57d76b44e14493e579fbdb91e2e"
+        }
+    },
+    {
+        "id": "ERC20Votes_sanity_cc75edf0",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC20Votes.sol",
+        "target_function": "_delegate/checkpoints/delegate/delegates/getVotes/numCheckpoints",
+        "text_chunk": "    function _delegate(address delegator, address delegatee) internal virtual {\n        address currentDelegate = delegates(delegator);\n        uint256 delegatorBalance = balanceOf(delegator);\n        _delegates[delegator] = delegatee;\n        emit DelegateChanged(delegator, currentDelegate, delegatee);\n        _moveVotingPower(currentDelegate, delegatee, delegatorBalance);\n    }\n\n\n    function checkpoints(address account, uint32 pos) public view virtual returns (Checkpoint memory) {\n        return _checkpoints[account][pos];\n    }\n\n\n    function delegate(address delegatee) public virtual override {\n        _delegate(_msgSender(), delegatee);\n    }\n\n\n    function delegates(address account) public view virtual override returns (address) {\n        return _delegates[account];\n    }\n\n\n    function getVotes(address account) public view virtual override returns (uint256) {\n        uint256 pos = _checkpoints[account].length;\n        return pos == 0 ? 0 : _checkpoints[account][pos - 1].votes;\n    }\n\n\n    function numCheckpoints(address account) public view virtual returns (uint32) {\n        return SafeCast.toUint32(_checkpoints[account].length);\n    }\n",
+        "formal_property": "// passes + rule sanity\nrule previous_delegatee_votes_removed() {\n    env e;\n    address delegator; address delegatee; address third;\n// converted from an invariant to a rule to slightly change the logic\n// if the fromBlock is the same as before, then the number of checkpoints stays the same\n// however if the fromBlock is new than the number of checkpoints increases\n// passes, fails rule sanity because tautology check seems to be bugged\ninvariant fromBlock_greaterThanEq_pos(address account, uint32 pos)\n    ckptFromBlock(account, pos) >= pos\n    filtered { f -> !f.isView }\nrule unique_checkpoints_rule(method f) {\n    env e; calldataarg args;\n    address account;\n    uint32 num_ckpts_ = numCheckpoints(account); \n    uint32 fromBlock_ = num_ckpts_ == 0 ? 0 : ckptFromBlock(account, num_ckpts_ - 1);\n\n    f(e, args);\n    uint32 _num_ckpts = numCheckpoints(account);\n    uint32 _fromBlock = _num_ckpts == 0 ? 0 : ckptFromBlock(account, _num_ckpts - 1);\n    \n    assert fromBlock_ == _fromBlock => num_ckpts_ == _num_ckpts || _num_ckpts == 1, \"same fromBlock, new checkpoint\";\n}\n    require third != delegatee;\n    require delegates(delegator) == third;\n    require numCheckpoints(third) < 1000000;\n    uint256 delegator_bal = balanceOf(e, delegator);\n    uint256 votes_ = getVotes(third);\n    _delegate(e, delegator, delegatee);\n    uint256 _votes = getVotes(third);\n    assert third != 0x0 => _votes == votes_ - delegator_bal, \"votes not removed from the previous delegatee\";\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "sanity",
+            "rule_type": "rule",
+            "modifies_state": true,
+            "methods_in_block": [
+                "numCheckpoints",
+                "delegates",
+                "getVotes",
+                "delegate",
+                "_delegate"
+            ],
+            "start_line": 200,
+            "end_line": 217,
+            "block_hash": "cc75edf0462175905d3321a248ba9d87"
+        }
+    },
+    {
+        "id": "ERC20Votes_sanity_9cf85abb",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC20Votes.sol",
+        "target_function": "_delegate/checkpoints/delegate/delegates/getVotes/numCheckpoints",
+        "text_chunk": "    function _delegate(address delegator, address delegatee) internal virtual {\n        address currentDelegate = delegates(delegator);\n        uint256 delegatorBalance = balanceOf(delegator);\n        _delegates[delegator] = delegatee;\n        emit DelegateChanged(delegator, currentDelegate, delegatee);\n        _moveVotingPower(currentDelegate, delegatee, delegatorBalance);\n    }\n\n\n    function checkpoints(address account, uint32 pos) public view virtual returns (Checkpoint memory) {\n        return _checkpoints[account][pos];\n    }\n\n\n    function delegate(address delegatee) public virtual override {\n        _delegate(_msgSender(), delegatee);\n    }\n\n\n    function delegates(address account) public view virtual override returns (address) {\n        return _delegates[account];\n    }\n\n\n    function getVotes(address account) public view virtual override returns (uint256) {\n        uint256 pos = _checkpoints[account].length;\n        return pos == 0 ? 0 : _checkpoints[account][pos - 1].votes;\n    }\n\n\n    function numCheckpoints(address account) public view virtual returns (uint32) {\n        return SafeCast.toUint32(_checkpoints[account].length);\n    }\n",
+        "formal_property": "// passes with rule sanity\nrule delegate_contained() {\n    env e;\n    address delegator; address delegatee; address other;\n// converted from an invariant to a rule to slightly change the logic\n// if the fromBlock is the same as before, then the number of checkpoints stays the same\n// however if the fromBlock is new than the number of checkpoints increases\n// passes, fails rule sanity because tautology check seems to be bugged\n// passes + rule sanity\ninvariant fromBlock_greaterThanEq_pos(address account, uint32 pos)\n    ckptFromBlock(account, pos) >= pos\n    filtered { f -> !f.isView }\nrule unique_checkpoints_rule(method f) {\n    env e; calldataarg args;\n    address account;\n    uint32 num_ckpts_ = numCheckpoints(account); \n    uint32 fromBlock_ = num_ckpts_ == 0 ? 0 : ckptFromBlock(account, num_ckpts_ - 1);\n\n    f(e, args);\n    uint32 _num_ckpts = numCheckpoints(account);\n    uint32 _fromBlock = _num_ckpts == 0 ? 0 : ckptFromBlock(account, _num_ckpts - 1);\n    \n    assert fromBlock_ == _fromBlock => num_ckpts_ == _num_ckpts || _num_ckpts == 1, \"same fromBlock, new checkpoint\";\n}\n    require other != delegatee;\n    require other != delegates(delegator); \n    uint256 votes_ = getVotes(other);\n    _delegate(e, delegator, delegatee);\n    uint256 _votes = getVotes(other);\n    assert votes_ == _votes, \"votes not contained\";\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "sanity",
+            "rule_type": "rule",
+            "modifies_state": true,
+            "methods_in_block": [
+                "delegates",
+                "getVotes",
+                "delegate",
+                "_delegate"
+            ],
+            "start_line": 219,
+            "end_line": 234,
+            "block_hash": "9cf85abb92e732f8d1c5557fe43f0f64"
+        }
+    },
+    {
+        "id": "ERC20Votes_delegate_no_frontrunning_714a04b0",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC20Votes.sol",
+        "target_function": "_delegate/checkpoints/delegate/delegates/getVotes/numCheckpoints",
+        "text_chunk": "    function _delegate(address delegator, address delegatee) internal virtual {\n        address currentDelegate = delegates(delegator);\n        uint256 delegatorBalance = balanceOf(delegator);\n        _delegates[delegator] = delegatee;\n        emit DelegateChanged(delegator, currentDelegate, delegatee);\n        _moveVotingPower(currentDelegate, delegatee, delegatorBalance);\n    }\n\n\n    function checkpoints(address account, uint32 pos) public view virtual returns (Checkpoint memory) {\n        return _checkpoints[account][pos];\n    }\n\n\n    function delegate(address delegatee) public virtual override {\n        _delegate(_msgSender(), delegatee);\n    }\n\n\n    function delegates(address account) public view virtual override returns (address) {\n        return _delegates[account];\n    }\n\n\n    function getVotes(address account) public view virtual override returns (uint256) {\n        uint256 pos = _checkpoints[account].length;\n        return pos == 0 ? 0 : _checkpoints[account][pos - 1].votes;\n    }\n\n\n    function numCheckpoints(address account) public view virtual returns (uint32) {\n        return SafeCast.toUint32(_checkpoints[account].length);\n    }\n",
+        "formal_property": "rule delegate_no_frontrunning(method f) {\n    env e; calldataarg args;\n    address delegator; address delegatee; address third; address other;\n// converted from an invariant to a rule to slightly change the logic\n// if the fromBlock is the same as before, then the number of checkpoints stays the same\n// however if the fromBlock is new than the number of checkpoints increases\n// passes, fails rule sanity because tautology check seems to be bugged\n// passes + rule sanity\ninvariant fromBlock_greaterThanEq_pos(address account, uint32 pos)\n    ckptFromBlock(account, pos) >= pos\n    filtered { f -> !f.isView }\nrule unique_checkpoints_rule(method f) {\n    address account;\n    uint32 num_ckpts_ = numCheckpoints(account); \n    uint32 fromBlock_ = num_ckpts_ == 0 ? 0 : ckptFromBlock(account, num_ckpts_ - 1);\n\n    f(e, args);\n    uint32 _num_ckpts = numCheckpoints(account);\n    uint32 _fromBlock = _num_ckpts == 0 ? 0 : ckptFromBlock(account, _num_ckpts - 1);\n    \n    assert fromBlock_ == _fromBlock => num_ckpts_ == _num_ckpts || _num_ckpts == 1, \"same fromBlock, new checkpoint\";\n}\n    require numCheckpoints(delegatee) < 1000000;\n    require numCheckpoints(third) < 1000000;\n    uint256 delegator_bal = balanceOf(e, delegator);\n    uint256 delegatee_votes_ = getVotes(delegatee);\n    uint256 third_votes_ = getVotes(third);\n    uint256 other_votes_ = getVotes(other);\n    require delegates(delegator) == third;\n    require third != delegatee;\n    require other != third;\n    require other != delegatee;\n    require delegatee != 0x0;\n    _delegate(e, delegator, delegatee);\n    uint256 _delegatee_votes = getVotes(delegatee);\n    uint256 _third_votes = getVotes(third);\n    uint256 _other_votes = getVotes(other);\n    // previous delegatee loses all of their votes\n    // delegatee gains that many votes\n    // third loses any votes delegated to them\n    assert _delegatee_votes == delegatee_votes_ + delegator_bal, \"delegatee did not receive votes\";\n    assert third != 0 => _third_votes == third_votes_ - delegator_bal, \"votes not removed from third\";\n    assert other_votes_ == _other_votes, \"delegate not contained\";\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "delegate_no_frontrunning",
+            "rule_type": "rule",
+            "modifies_state": true,
+            "methods_in_block": [
+                "numCheckpoints",
+                "delegates",
+                "getVotes",
+                "delegate",
+                "_delegate"
+            ],
+            "start_line": 236,
+            "end_line": 271,
+            "block_hash": "714a04b013e49f46c826ae9937ecf80e"
+        }
+    },
+    {
+        "id": "ERC20Votes_mint_increases_totalSupply_d1ed8dfc",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC20Votes.sol",
+        "target_function": "_maxSupply/checkpoints/getPastTotalSupply/numCheckpoints",
+        "text_chunk": "    function _maxSupply() internal view virtual returns (uint224) {\n        return type(uint224).max;\n    }\n\n\n    function checkpoints(address account, uint32 pos) public view virtual returns (Checkpoint memory) {\n        return _checkpoints[account][pos];\n    }\n\n\n    function getPastTotalSupply(uint256 blockNumber) public view virtual override returns (uint256) {\n        require(blockNumber < block.number, \"ERC20Votes: block not yet mined\");\n        return _checkpointsLookup(_totalSupplyCheckpoints, blockNumber);\n    }\n\n\n    function numCheckpoints(address account) public view virtual returns (uint32) {\n        return SafeCast.toUint32(_checkpoints[account].length);\n    }\n",
+        "formal_property": "rule mint_increases_totalSupply() {\n// converted from an invariant to a rule to slightly change the logic\n// if the fromBlock is the same as before, then the number of checkpoints stays the same\n// however if the fromBlock is new than the number of checkpoints increases\n// passes, fails rule sanity because tautology check seems to be bugged\n// passes + rule sanity\ninvariant fromBlock_greaterThanEq_pos(address account, uint32 pos)\n    ckptFromBlock(account, pos) >= pos\n    filtered { f -> !f.isView }\nrule unique_checkpoints_rule(method f) {\n    env e; calldataarg args;\n    address account;\n    uint32 num_ckpts_ = numCheckpoints(account); \n    uint32 fromBlock_ = num_ckpts_ == 0 ? 0 : ckptFromBlock(account, num_ckpts_ - 1);\n\n    f(e, args);\n    uint32 _num_ckpts = numCheckpoints(account);\n    uint32 _fromBlock = _num_ckpts == 0 ? 0 : ckptFromBlock(account, _num_ckpts - 1);\n    \n    assert fromBlock_ == _fromBlock => num_ckpts_ == _num_ckpts || _num_ckpts == 1, \"same fromBlock, new checkpoint\";\n}\n    env e;\n    uint256 amount; address account;\n    uint256 fromBlock = e.block.number;\n    uint256 totalSupply_ = totalSupply();\n    mint(e, account, amount);\n    uint256 _totalSupply = totalSupply();\n    require _totalSupply < _maxSupply();\n    assert _totalSupply == totalSupply_ + amount, \"totalSupply not increased properly\";\n    assert getPastTotalSupply(e, fromBlock) == totalSupply_ , \"previous total supply not saved properly\";\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "mint_increases_totalSupply",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "getPastTotalSupply",
+                "totalSupply",
+                "_maxSupply",
+                "mint"
+            ],
+            "start_line": 276,
+            "end_line": 291,
+            "block_hash": "d1ed8dfc8f675bb31bde1c1caae60355"
+        }
+    },
+    {
+        "id": "ERC20Votes_burn_decreases_totalSupply_cc3aef9d",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC20Votes.sol",
+        "target_function": "checkpoints/getPastTotalSupply/numCheckpoints",
+        "text_chunk": "    function checkpoints(address account, uint32 pos) public view virtual returns (Checkpoint memory) {\n        return _checkpoints[account][pos];\n    }\n\n\n    function getPastTotalSupply(uint256 blockNumber) public view virtual override returns (uint256) {\n        require(blockNumber < block.number, \"ERC20Votes: block not yet mined\");\n        return _checkpointsLookup(_totalSupplyCheckpoints, blockNumber);\n    }\n\n\n    function numCheckpoints(address account) public view virtual returns (uint32) {\n        return SafeCast.toUint32(_checkpoints[account].length);\n    }\n",
+        "formal_property": "rule burn_decreases_totalSupply() {\n// converted from an invariant to a rule to slightly change the logic\n// if the fromBlock is the same as before, then the number of checkpoints stays the same\n// however if the fromBlock is new than the number of checkpoints increases\n// passes, fails rule sanity because tautology check seems to be bugged\n// passes + rule sanity\ninvariant fromBlock_greaterThanEq_pos(address account, uint32 pos)\n    ckptFromBlock(account, pos) >= pos\n    filtered { f -> !f.isView }\nrule unique_checkpoints_rule(method f) {\n    env e; calldataarg args;\n    address account;\n    uint32 num_ckpts_ = numCheckpoints(account); \n    uint32 fromBlock_ = num_ckpts_ == 0 ? 0 : ckptFromBlock(account, num_ckpts_ - 1);\n\n    f(e, args);\n    uint32 _num_ckpts = numCheckpoints(account);\n    uint32 _fromBlock = _num_ckpts == 0 ? 0 : ckptFromBlock(account, _num_ckpts - 1);\n    \n    assert fromBlock_ == _fromBlock => num_ckpts_ == _num_ckpts || _num_ckpts == 1, \"same fromBlock, new checkpoint\";\n}\n    env e;\n    uint256 amount; address account;\n    uint256 fromBlock = e.block.number;\n    uint256 totalSupply_ = totalSupply();\n    burn(e, account, amount);\n    uint256 _totalSupply = totalSupply();\n    assert _totalSupply == totalSupply_ - amount, \"totalSupply not decreased properly\";\n    assert getPastTotalSupply(e, fromBlock) == totalSupply_ , \"previous total supply not saved properly\";\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "burn_decreases_totalSupply",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "getPastTotalSupply",
+                "totalSupply",
+                "burn"
+            ],
+            "start_line": 294,
+            "end_line": 307,
+            "block_hash": "cc3aef9da479384ca565afce1b906625"
+        }
+    },
+    {
+        "id": "ERC20Votes_mint_doesnt_increase_totalVotes_5d5419ab",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC20Votes.sol",
+        "target_function": "checkpoints/numCheckpoints",
+        "text_chunk": "    function checkpoints(address account, uint32 pos) public view virtual returns (Checkpoint memory) {\n        return _checkpoints[account][pos];\n    }\n\n\n    function numCheckpoints(address account) public view virtual returns (uint32) {\n        return SafeCast.toUint32(_checkpoints[account].length);\n    }\n",
+        "formal_property": "rule mint_doesnt_increase_totalVotes() {\n// converted from an invariant to a rule to slightly change the logic\n// if the fromBlock is the same as before, then the number of checkpoints stays the same\n// however if the fromBlock is new than the number of checkpoints increases\n// passes, fails rule sanity because tautology check seems to be bugged\n// passes + rule sanity\ninvariant fromBlock_greaterThanEq_pos(address account, uint32 pos)\n    ckptFromBlock(account, pos) >= pos\n    filtered { f -> !f.isView }\nrule unique_checkpoints_rule(method f) {\n    env e; calldataarg args;\n    address account;\n    uint32 num_ckpts_ = numCheckpoints(account); \n    uint32 fromBlock_ = num_ckpts_ == 0 ? 0 : ckptFromBlock(account, num_ckpts_ - 1);\n\n    f(e, args);\n    uint32 _num_ckpts = numCheckpoints(account);\n    uint32 _fromBlock = _num_ckpts == 0 ? 0 : ckptFromBlock(account, _num_ckpts - 1);\n    \n    assert fromBlock_ == _fromBlock => num_ckpts_ == _num_ckpts || _num_ckpts == 1, \"same fromBlock, new checkpoint\";\n}\n    env e;\n    uint256 amount; address account;\n    uint224 totalVotes_ = totalVotes();\n    mint(e, account, amount);\n    assert totalVotes() == totalVotes_, \"totalVotes increased\";\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "mint_doesnt_increase_totalVotes",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "mint"
+            ],
+            "start_line": 312,
+            "end_line": 321,
+            "block_hash": "5d5419ab0889ba92c951ce36255cfcf5"
+        }
+    },
+    {
+        "id": "ERC20Votes_burn_doesnt_decrease_totalVotes_79ddf2d6",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC20Votes.sol",
+        "target_function": "checkpoints/numCheckpoints",
+        "text_chunk": "    function checkpoints(address account, uint32 pos) public view virtual returns (Checkpoint memory) {\n        return _checkpoints[account][pos];\n    }\n\n\n    function numCheckpoints(address account) public view virtual returns (uint32) {\n        return SafeCast.toUint32(_checkpoints[account].length);\n    }\n",
+        "formal_property": "rule burn_doesnt_decrease_totalVotes() {\n// converted from an invariant to a rule to slightly change the logic\n// if the fromBlock is the same as before, then the number of checkpoints stays the same\n// however if the fromBlock is new than the number of checkpoints increases\n// passes, fails rule sanity because tautology check seems to be bugged\n// passes + rule sanity\ninvariant fromBlock_greaterThanEq_pos(address account, uint32 pos)\n    ckptFromBlock(account, pos) >= pos\n    filtered { f -> !f.isView }\nrule unique_checkpoints_rule(method f) {\n    env e; calldataarg args;\n    address account;\n    uint32 num_ckpts_ = numCheckpoints(account); \n    uint32 fromBlock_ = num_ckpts_ == 0 ? 0 : ckptFromBlock(account, num_ckpts_ - 1);\n\n    f(e, args);\n    uint32 _num_ckpts = numCheckpoints(account);\n    uint32 _fromBlock = _num_ckpts == 0 ? 0 : ckptFromBlock(account, _num_ckpts - 1);\n    \n    assert fromBlock_ == _fromBlock => num_ckpts_ == _num_ckpts || _num_ckpts == 1, \"same fromBlock, new checkpoint\";\n}\n    env e;\n    uint256 amount; address account;\n    uint224 totalVotes_ = totalVotes();\n    burn(e, account, amount);\n    assert totalVotes() == totalVotes_, \"totalVotes decreased\";\n}",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "burn_doesnt_decrease_totalVotes",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "burn"
+            ],
+            "start_line": 323,
+            "end_line": 332,
+            "block_hash": "79ddf2d6576f1a47cd8e510f26560001"
         }
     }
 ]

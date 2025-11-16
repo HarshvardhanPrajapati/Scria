@@ -11,7 +11,47 @@
             "function_list": [
                 "bid"
             ],
+            "state_variables": [
+                "currentBid",
+                "currentBidder"
+            ],
             "is_standard": "UNKNOWN"
+        }
+    },
+    {
+        "id": "ContractA_demonstrates_047ee7a9",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ContractA.sol",
+        "target_function": "bid",
+        "text_chunk": "    function bid() public payable\n    {\n        require(msg.value >= address(this).balance);\n        payable(currentBidder).transfer(address(this).balance);\n        currentBidder = msg.sender; \n        currentBid = msg.value;\n    }\n",
+        "formal_property": " This rule demonstrates how the source of amount transferred affects the balance of the current contract.\n This rule fails for `Auction.sol` because:\n 1. The balance of `currentContract` is increased by `msg.value` at the entrance to `bid()`.\n 2. the sender changes to `currentContract` in internal `bid()` and all his balance is transferred, so his balance does not increase.\n This rule passes for `AuctionFixed.sol` because only `currentBid` is transferred.\n */\nrule bidIncreasesAssets() {\n    env e;\n    require(e.msg.sender != currentContract);\n    require(e.msg.value > currentBid() );\n    uint256 balanceBefore = nativeBalances[currentContract];\n    bid(e);\n    assert nativeBalances[currentContract] > balanceBefore;\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "demonstrates",
+            "rule_type": "rule",
+            "modifies_state": true,
+            "methods_in_block": [],
+            "start_line": 14,
+            "end_line": 27,
+            "block_hash": "047ee7a9126e99901af47b69ed754d37"
+        }
+    },
+    {
+        "id": "ContractA_demonstrates_374a49ed",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ContractA.sol",
+        "target_function": "bid",
+        "text_chunk": "    function bid() public payable\n    {\n        require(msg.value >= address(this).balance);\n        payable(currentBidder).transfer(address(this).balance);\n        currentBidder = msg.sender; \n        currentBid = msg.value;\n    }\n",
+        "formal_property": " This rule demonstrates how the source of amount transferred affects the balance of the current contract.\n This rule passes vacuously for `Auction.sol` because of the `require e.msg.value > nativeBalances[currentContract]` in the spec\n and `require msg.value >= msg.value + nativeBalances[currentContract]` in the code where `nativeBalances[currentContract] > 0`.\n It passes non-vacuously for AuctionFixed.sol because the amount transferred is `currentBid` for which `msg.value >= currentBid`\n can hold.\n */\nrule bidSuccessfullyExpectVacuous() {\n    env e;\n    uint256 balanceBefore = nativeBalances[currentContract];\n    require(e.msg.sender != currentContract);\n    require(e.msg.value > 0 &&  e.msg.value > balanceBefore);\n    require (balanceBefore > 0);\n    bid(e);\n    assert nativeBalances[currentContract] >= balanceBefore;\n}",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "demonstrates",
+            "rule_type": "rule",
+            "modifies_state": true,
+            "methods_in_block": [],
+            "start_line": 30,
+            "end_line": 44,
+            "block_hash": "374a49edf1c90de66acef92839dad734"
         }
     }
 ]

@@ -32,72 +32,175 @@
                 "depositTo",
                 "add"
             ],
+            "state_variables": [
+                "_owner",
+                "_totalSupply",
+                "_balances",
+                "_allowances"
+            ],
             "is_standard": "UNKNOWN"
         }
     },
     {
-        "id": "ERC20fixed_transferSpec",
-        "chunk_type": "FUNCTION_RULE",
-        "source_contract": "ERC20fixed.sol",
-        "target_function": "balanceof/transfer",
-        "text_chunk": "// SPDX-License-Identifier: MIT\n// OpenZeppelin Contracts v4.4.1 (token/ERC20/ERC20.sol)\n\npragma solidity ^0.8.0;\n\nimport \"../ContractsAndProperties/IERC20.sol\";\nimport \"../ContractsAndProperties/IERC20Metadata.sol\";\n\ncontract ERC20Fixed is IERC20, IERC20Metadata {\n    mapping(address => uint256) private _balances;\n\n    mapping(address => mapping(address => uint256)) private _allowances;\n\n    uint256 private _totalSupply;\n\n    address public _owner;\n    constructor() {\n    }\n\n    modifier onlyOwner() {\n        require(_owner == msg.sender);\n        _;\n    }\n    function name() public view virtual override returns (string memory) {\n        return \"\";\n    }\n    function symbol() public view virtual override returns (string memory) {\n        return \"\";\n    }\n    function decimals() public view virtual override returns (uint8) {\n        return 18;\n    }\n    function totalSupply() public view virtual override returns (uint256) {\n        return _totalSupply;\n    }\n    function balanceOf(address account)\n        public\n        view\n        virtual\n        override\n        returns (uint256)\n    {\n        return _balances[account];\n    }\n    function transfer(address recipient, uint256 amount)\n        public\n        virtual\n        override\n        returns (bool)\n    {\n        _transfer(msg.sender, recipient, amount);\n        return true;\n    }\n    function allowance(address owner, address spender)\n        public\n        view\n        virtual\n        override\n        returns (uint256)\n    {\n        return _allowances[owner][spender];\n    }\n    function approve(address spender, uint256 amount)\n        public\n        virtual\n        override\n        returns (bool)\n    {\n        _approve(msg.sender, spender, amount);\n        return true;\n    }\n    function transferFrom(\n        address sender,\n        address recipient,\n        uint256 amount\n    ) public virtual override returns (bool) {\n        uint256 currentAllowance = _allowances[sender][msg.sender];\n        require(\n            currentAllowance >= amount,\n            \"ERC20: transfer amount exceeds allowance\"\n        ); \n        unchecked {\n            _approve(sender, msg.sender, currentAllowance - amount);\n        }\n\n        _transfer(sender, recipient, amount);\n\n        return true;\n    }\n    function increaseAllowance(address spender, uint256 addedValue)\n        public\n        virtual\n        returns (bool)\n    {\n        _approve(\n            msg.sender,\n            spender,\n            _allowances[msg.sender][spender] + addedValue\n        ); \n        return true;\n    }\n    function decreaseAllowance(address spender, uint256 subtractedValue)\n        public\n        virtual\n        returns (bool)\n    {\n        uint256 currentAllowance = _allowances[msg.sender][spender];\n        require(\n            currentAllowance >= subtractedValue,\n            \"ERC20: decreased allowance below zero\"\n        );\n        unchecked {\n            _approve(msg.sender, spender, currentAllowance - subtractedValue);\n        }\n\n        return true;\n    }\n    function _transfer(\n        address sender,\n        address recipient,\n        uint256 amount\n    ) internal virtual {\n        require(sender != address(0), \"ERC20: transfer from the zero address\");\n        require(recipient != address(0), \"ERC20: transfer to the zero address\");\n\n        _beforeTokenTransfer(sender, recipient, amount);\n\n        uint256 senderBalance = _balances[sender];\n        require(\n            senderBalance >= amount,\n            \"ERC20: transfer amount exceeds balance\"\n        ); \n        unchecked {\n            _balances[sender] = senderBalance - amount;\n        }\n        _balances[recipient] += amount;\n\n        emit Transfer(sender, recipient, amount);\n\n        _afterTokenTransfer(sender, recipient, amount);\n    }\n    function mint(address account, uint256 amount) onlyOwner() public virtual override {\n        require(account != address(0), \"ERC20: mint to the zero address\");\n\n        _beforeTokenTransfer(address(0), account, amount);\n\n        _totalSupply += amount;\n        _balances[account] += amount;\n        emit Transfer(address(0), account, amount);\n\n        _afterTokenTransfer(address(0), account, amount);\n    }\n    function burn(address account, uint256 amount) onlyOwner() public virtual override {\n        require(account != address(0), \"ERC20: burn from the zero address\");\n\n        _beforeTokenTransfer(account, address(0), amount);\n\n        uint256 accountBalance = _balances[account];\n        require(accountBalance >= amount, \"ERC20: burn amount exceeds balance\");\n        unchecked {\n            _balances[account] = accountBalance - amount;\n        }\n        _totalSupply -= amount;\n\n        emit Transfer(account, address(0), amount);\n\n        _afterTokenTransfer(account, address(0), amount);\n    }\n    function _approve(\n        address owner,\n        address spender,\n        uint256 amount\n    ) internal virtual {\n        require(owner != address(0), \"ERC20: approve from the zero address\");\n        require(spender != address(0), \"ERC20: approve to the zero address\");\n        _allowances[owner][spender] = amount;\n        emit Approval(owner, spender, amount);\n    }\n    function _beforeTokenTransfer(\n        address from,\n        address to,\n        uint256 amount\n    ) internal virtual {}\n    function _afterTokenTransfer(\n        address from,\n        address to,\n        uint256 amount\n    ) internal virtual {}\n\n    function deposit() external payable {\n        _balances[msg.sender] += msg.value;\n        _totalSupply += msg.value;\n    }\n\n    function withdraw(uint256 amount) external {\n        require(amount <= _balances[msg.sender]);\n        _balances[msg.sender] -= amount;\n        _totalSupply -= amount;\n        (bool success, ) = msg.sender.call{value: amount}(\"\");\n        require(success);\n    }\n\n\n    function addAmount(uint256 amount) external {\n            _balances[msg.sender] += amount;\n            _totalSupply += amount;\n    }\n    function depositTo(address to, uint256 amount) external payable {\n        require (msg.value > amount);\n        require (to != address(this));\n        unchecked {\n            _transfer(address(this), to, amount);\n            _transfer(address(this), msg.sender, msg.value - amount);\n        }\n    }\n\n    function add(uint256 x, uint256 y) external pure returns(uint256) {\n        unchecked {\n         return x + y;\n        }\n    }\n}",
-        "formal_property": "rule transferSpec {\n    address sender; address recip; uint amount;\n\n    env e;\n    require e.msg.sender == sender;\n\n    mathint balance_sender_before = balanceOf(sender);\n    mathint balance_recip_before = balanceOf(recip);\n\n    transfer(e, recip, amount);\n\n    mathint balance_sender_after = balanceOf(sender);\n    mathint balance_recip_after = balanceOf(recip);\n\n    require sender != recip;\n\n    assert balance_sender_after == balance_sender_before - amount,\n        \"transfer must decrease sender's balance by amount\";\n\n    assert balance_recip_after == balance_recip_before + amount,\n        \"transfer must increase recipient's balance by amount\";\n}",
-        "nl_summary": "",
-        "metadata": {
-            "rule_name": "transferSpec",
-            "rule_type": "RULE"
-        }
-    },
-    {
-        "id": "ERC20fixed_transferReverts",
-        "chunk_type": "FUNCTION_RULE",
-        "source_contract": "ERC20fixed.sol",
-        "target_function": "balanceof/transfer",
-        "text_chunk": "// SPDX-License-Identifier: MIT\n// OpenZeppelin Contracts v4.4.1 (token/ERC20/ERC20.sol)\n\npragma solidity ^0.8.0;\n\nimport \"../ContractsAndProperties/IERC20.sol\";\nimport \"../ContractsAndProperties/IERC20Metadata.sol\";\n\ncontract ERC20Fixed is IERC20, IERC20Metadata {\n    mapping(address => uint256) private _balances;\n\n    mapping(address => mapping(address => uint256)) private _allowances;\n\n    uint256 private _totalSupply;\n\n    address public _owner;\n    constructor() {\n    }\n\n    modifier onlyOwner() {\n        require(_owner == msg.sender);\n        _;\n    }\n    function name() public view virtual override returns (string memory) {\n        return \"\";\n    }\n    function symbol() public view virtual override returns (string memory) {\n        return \"\";\n    }\n    function decimals() public view virtual override returns (uint8) {\n        return 18;\n    }\n    function totalSupply() public view virtual override returns (uint256) {\n        return _totalSupply;\n    }\n    function balanceOf(address account)\n        public\n        view\n        virtual\n        override\n        returns (uint256)\n    {\n        return _balances[account];\n    }\n    function transfer(address recipient, uint256 amount)\n        public\n        virtual\n        override\n        returns (bool)\n    {\n        _transfer(msg.sender, recipient, amount);\n        return true;\n    }\n    function allowance(address owner, address spender)\n        public\n        view\n        virtual\n        override\n        returns (uint256)\n    {\n        return _allowances[owner][spender];\n    }\n    function approve(address spender, uint256 amount)\n        public\n        virtual\n        override\n        returns (bool)\n    {\n        _approve(msg.sender, spender, amount);\n        return true;\n    }\n    function transferFrom(\n        address sender,\n        address recipient,\n        uint256 amount\n    ) public virtual override returns (bool) {\n        uint256 currentAllowance = _allowances[sender][msg.sender];\n        require(\n            currentAllowance >= amount,\n            \"ERC20: transfer amount exceeds allowance\"\n        ); \n        unchecked {\n            _approve(sender, msg.sender, currentAllowance - amount);\n        }\n\n        _transfer(sender, recipient, amount);\n\n        return true;\n    }\n    function increaseAllowance(address spender, uint256 addedValue)\n        public\n        virtual\n        returns (bool)\n    {\n        _approve(\n            msg.sender,\n            spender,\n            _allowances[msg.sender][spender] + addedValue\n        ); \n        return true;\n    }\n    function decreaseAllowance(address spender, uint256 subtractedValue)\n        public\n        virtual\n        returns (bool)\n    {\n        uint256 currentAllowance = _allowances[msg.sender][spender];\n        require(\n            currentAllowance >= subtractedValue,\n            \"ERC20: decreased allowance below zero\"\n        );\n        unchecked {\n            _approve(msg.sender, spender, currentAllowance - subtractedValue);\n        }\n\n        return true;\n    }\n    function _transfer(\n        address sender,\n        address recipient,\n        uint256 amount\n    ) internal virtual {\n        require(sender != address(0), \"ERC20: transfer from the zero address\");\n        require(recipient != address(0), \"ERC20: transfer to the zero address\");\n\n        _beforeTokenTransfer(sender, recipient, amount);\n\n        uint256 senderBalance = _balances[sender];\n        require(\n            senderBalance >= amount,\n            \"ERC20: transfer amount exceeds balance\"\n        ); \n        unchecked {\n            _balances[sender] = senderBalance - amount;\n        }\n        _balances[recipient] += amount;\n\n        emit Transfer(sender, recipient, amount);\n\n        _afterTokenTransfer(sender, recipient, amount);\n    }\n    function mint(address account, uint256 amount) onlyOwner() public virtual override {\n        require(account != address(0), \"ERC20: mint to the zero address\");\n\n        _beforeTokenTransfer(address(0), account, amount);\n\n        _totalSupply += amount;\n        _balances[account] += amount;\n        emit Transfer(address(0), account, amount);\n\n        _afterTokenTransfer(address(0), account, amount);\n    }\n    function burn(address account, uint256 amount) onlyOwner() public virtual override {\n        require(account != address(0), \"ERC20: burn from the zero address\");\n\n        _beforeTokenTransfer(account, address(0), amount);\n\n        uint256 accountBalance = _balances[account];\n        require(accountBalance >= amount, \"ERC20: burn amount exceeds balance\");\n        unchecked {\n            _balances[account] = accountBalance - amount;\n        }\n        _totalSupply -= amount;\n\n        emit Transfer(account, address(0), amount);\n\n        _afterTokenTransfer(account, address(0), amount);\n    }\n    function _approve(\n        address owner,\n        address spender,\n        uint256 amount\n    ) internal virtual {\n        require(owner != address(0), \"ERC20: approve from the zero address\");\n        require(spender != address(0), \"ERC20: approve to the zero address\");\n        _allowances[owner][spender] = amount;\n        emit Approval(owner, spender, amount);\n    }\n    function _beforeTokenTransfer(\n        address from,\n        address to,\n        uint256 amount\n    ) internal virtual {}\n    function _afterTokenTransfer(\n        address from,\n        address to,\n        uint256 amount\n    ) internal virtual {}\n\n    function deposit() external payable {\n        _balances[msg.sender] += msg.value;\n        _totalSupply += msg.value;\n    }\n\n    function withdraw(uint256 amount) external {\n        require(amount <= _balances[msg.sender]);\n        _balances[msg.sender] -= amount;\n        _totalSupply -= amount;\n        (bool success, ) = msg.sender.call{value: amount}(\"\");\n        require(success);\n    }\n\n\n    function addAmount(uint256 amount) external {\n            _balances[msg.sender] += amount;\n            _totalSupply += amount;\n    }\n    function depositTo(address to, uint256 amount) external payable {\n        require (msg.value > amount);\n        require (to != address(this));\n        unchecked {\n            _transfer(address(this), to, amount);\n            _transfer(address(this), msg.sender, msg.value - amount);\n        }\n    }\n\n    function add(uint256 x, uint256 y) external pure returns(uint256) {\n        unchecked {\n         return x + y;\n        }\n    }\n}",
-        "formal_property": "rule transferReverts {\n    env e; address recip; uint amount;\n\n    require balanceOf(e.msg.sender) < amount;\n\n    transfer@withrevert(e, recip, amount);\n\n    assert lastReverted,\n        \"transfer(recip,amount) must revert if sender's balance is less than `amount`\";\n}",
-        "nl_summary": "",
-        "metadata": {
-            "rule_name": "transferReverts",
-            "rule_type": "RULE"
-        }
-    },
-    {
-        "id": "ERC20fixed_transferDoesntRevert",
-        "chunk_type": "FUNCTION_RULE",
-        "source_contract": "ERC20fixed.sol",
-        "target_function": "balanceof/transfer",
-        "text_chunk": "// SPDX-License-Identifier: MIT\n// OpenZeppelin Contracts v4.4.1 (token/ERC20/ERC20.sol)\n\npragma solidity ^0.8.0;\n\nimport \"../ContractsAndProperties/IERC20.sol\";\nimport \"../ContractsAndProperties/IERC20Metadata.sol\";\n\ncontract ERC20Fixed is IERC20, IERC20Metadata {\n    mapping(address => uint256) private _balances;\n\n    mapping(address => mapping(address => uint256)) private _allowances;\n\n    uint256 private _totalSupply;\n\n    address public _owner;\n    constructor() {\n    }\n\n    modifier onlyOwner() {\n        require(_owner == msg.sender);\n        _;\n    }\n    function name() public view virtual override returns (string memory) {\n        return \"\";\n    }\n    function symbol() public view virtual override returns (string memory) {\n        return \"\";\n    }\n    function decimals() public view virtual override returns (uint8) {\n        return 18;\n    }\n    function totalSupply() public view virtual override returns (uint256) {\n        return _totalSupply;\n    }\n    function balanceOf(address account)\n        public\n        view\n        virtual\n        override\n        returns (uint256)\n    {\n        return _balances[account];\n    }\n    function transfer(address recipient, uint256 amount)\n        public\n        virtual\n        override\n        returns (bool)\n    {\n        _transfer(msg.sender, recipient, amount);\n        return true;\n    }\n    function allowance(address owner, address spender)\n        public\n        view\n        virtual\n        override\n        returns (uint256)\n    {\n        return _allowances[owner][spender];\n    }\n    function approve(address spender, uint256 amount)\n        public\n        virtual\n        override\n        returns (bool)\n    {\n        _approve(msg.sender, spender, amount);\n        return true;\n    }\n    function transferFrom(\n        address sender,\n        address recipient,\n        uint256 amount\n    ) public virtual override returns (bool) {\n        uint256 currentAllowance = _allowances[sender][msg.sender];\n        require(\n            currentAllowance >= amount,\n            \"ERC20: transfer amount exceeds allowance\"\n        ); \n        unchecked {\n            _approve(sender, msg.sender, currentAllowance - amount);\n        }\n\n        _transfer(sender, recipient, amount);\n\n        return true;\n    }\n    function increaseAllowance(address spender, uint256 addedValue)\n        public\n        virtual\n        returns (bool)\n    {\n        _approve(\n            msg.sender,\n            spender,\n            _allowances[msg.sender][spender] + addedValue\n        ); \n        return true;\n    }\n    function decreaseAllowance(address spender, uint256 subtractedValue)\n        public\n        virtual\n        returns (bool)\n    {\n        uint256 currentAllowance = _allowances[msg.sender][spender];\n        require(\n            currentAllowance >= subtractedValue,\n            \"ERC20: decreased allowance below zero\"\n        );\n        unchecked {\n            _approve(msg.sender, spender, currentAllowance - subtractedValue);\n        }\n\n        return true;\n    }\n    function _transfer(\n        address sender,\n        address recipient,\n        uint256 amount\n    ) internal virtual {\n        require(sender != address(0), \"ERC20: transfer from the zero address\");\n        require(recipient != address(0), \"ERC20: transfer to the zero address\");\n\n        _beforeTokenTransfer(sender, recipient, amount);\n\n        uint256 senderBalance = _balances[sender];\n        require(\n            senderBalance >= amount,\n            \"ERC20: transfer amount exceeds balance\"\n        ); \n        unchecked {\n            _balances[sender] = senderBalance - amount;\n        }\n        _balances[recipient] += amount;\n\n        emit Transfer(sender, recipient, amount);\n\n        _afterTokenTransfer(sender, recipient, amount);\n    }\n    function mint(address account, uint256 amount) onlyOwner() public virtual override {\n        require(account != address(0), \"ERC20: mint to the zero address\");\n\n        _beforeTokenTransfer(address(0), account, amount);\n\n        _totalSupply += amount;\n        _balances[account] += amount;\n        emit Transfer(address(0), account, amount);\n\n        _afterTokenTransfer(address(0), account, amount);\n    }\n    function burn(address account, uint256 amount) onlyOwner() public virtual override {\n        require(account != address(0), \"ERC20: burn from the zero address\");\n\n        _beforeTokenTransfer(account, address(0), amount);\n\n        uint256 accountBalance = _balances[account];\n        require(accountBalance >= amount, \"ERC20: burn amount exceeds balance\");\n        unchecked {\n            _balances[account] = accountBalance - amount;\n        }\n        _totalSupply -= amount;\n\n        emit Transfer(account, address(0), amount);\n\n        _afterTokenTransfer(account, address(0), amount);\n    }\n    function _approve(\n        address owner,\n        address spender,\n        uint256 amount\n    ) internal virtual {\n        require(owner != address(0), \"ERC20: approve from the zero address\");\n        require(spender != address(0), \"ERC20: approve to the zero address\");\n        _allowances[owner][spender] = amount;\n        emit Approval(owner, spender, amount);\n    }\n    function _beforeTokenTransfer(\n        address from,\n        address to,\n        uint256 amount\n    ) internal virtual {}\n    function _afterTokenTransfer(\n        address from,\n        address to,\n        uint256 amount\n    ) internal virtual {}\n\n    function deposit() external payable {\n        _balances[msg.sender] += msg.value;\n        _totalSupply += msg.value;\n    }\n\n    function withdraw(uint256 amount) external {\n        require(amount <= _balances[msg.sender]);\n        _balances[msg.sender] -= amount;\n        _totalSupply -= amount;\n        (bool success, ) = msg.sender.call{value: amount}(\"\");\n        require(success);\n    }\n\n\n    function addAmount(uint256 amount) external {\n            _balances[msg.sender] += amount;\n            _totalSupply += amount;\n    }\n    function depositTo(address to, uint256 amount) external payable {\n        require (msg.value > amount);\n        require (to != address(this));\n        unchecked {\n            _transfer(address(this), to, amount);\n            _transfer(address(this), msg.sender, msg.value - amount);\n        }\n    }\n\n    function add(uint256 x, uint256 y) external pure returns(uint256) {\n        unchecked {\n         return x + y;\n        }\n    }\n}",
-        "formal_property": "rule transferDoesntRevert {\n    env e; address recipient; uint amount;\n\n    require balanceOf(e.msg.sender) > amount;\n    require e.msg.value == 0;\n    require balanceOf(recipient) + amount < max_uint;\n    require e.msg.sender != 0;\n    require recipient != 0;\n\n    transfer@withrevert(e, recipient, amount);\n    assert !lastReverted;\n}",
-        "nl_summary": "",
-        "metadata": {
-            "rule_name": "transferDoesntRevert",
-            "rule_type": "RULE"
-        }
-    },
-    {
-        "id": "ERC20fixed_onlyHolderCanChangeAllowance",
-        "chunk_type": "FUNCTION_RULE",
-        "source_contract": "ERC20fixed.sol",
-        "target_function": "allowance/approve/increaseallowance",
-        "text_chunk": "function allowance(address owner, address spender)\n        public\n        view\n        virtual\n        override\n        returns (uint256)\n    {\n        return _allowances[owner][spender];\n    }",
-        "formal_property": "rule onlyHolderCanChangeAllowance {\n    address holder; address spender;\n\n    mathint allowance_before = allowance(holder, spender);\n    method f; env e; calldataarg args; // was: env e; uint256 amount;\n    f(e, args);                        // was: approve(e, spender, amount);\n\n    mathint allowance_after = allowance(holder, spender);\n\n    assert allowance_after > allowance_before => e.msg.sender == holder,\n        \"approve must only change the sender's allowance\";\n\n    assert allowance_after > allowance_before =>\n        (f.selector == sig:approve(address,uint).selector || f.selector == sig:increaseAllowance(address,uint).selector),\n        \"only approve and increaseAllowance can increase allowances\";\n}",
-        "nl_summary": "",
-        "metadata": {
-            "rule_name": "onlyHolderCanChangeAllowance",
-            "rule_type": "RULE"
-        }
-    },
-    {
-        "id": "ERC20fixed_totalSupplyIsSumOfBalances",
+        "id": "ERC20fixed_totalSupplyIsSumOfBalances_285e39c7",
         "chunk_type": "CONTRACT_INVARIANT",
         "source_contract": "ERC20fixed.sol",
-        "target_function": "totalsupply",
-        "text_chunk": "// SPDX-License-Identifier: MIT\n// OpenZeppelin Contracts v4.4.1 (token/ERC20/ERC20.sol)\n\npragma solidity ^0.8.0;\n\nimport \"../ContractsAndProperties/IERC20.sol\";\nimport \"../ContractsAndProperties/IERC20Metadata.sol\";\n\ncontract ERC20Fixed is IERC20, IERC20Metadata {\n    mapping(address => uint256) private _balances;\n\n    mapping(address => mapping(address => uint256)) private _allowances;\n\n    uint256 private _totalSupply;\n\n    address public _owner;\n    constructor() {\n    }\n\n    modifier onlyOwner() {\n        require(_owner == msg.sender);\n        _;\n    }\n    function name() public view virtual override returns (string memory) {\n        return \"\";\n    }\n    function symbol() public view virtual override returns (string memory) {\n        return \"\";\n    }\n    function decimals() public view virtual override returns (uint8) {\n        return 18;\n    }\n    function totalSupply() public view virtual override returns (uint256) {\n        return _totalSupply;\n    }\n    function balanceOf(address account)\n        public\n        view\n        virtual\n        override\n        returns (uint256)\n    {\n        return _balances[account];\n    }\n    function transfer(address recipient, uint256 amount)\n        public\n        virtual\n        override\n        returns (bool)\n    {\n        _transfer(msg.sender, recipient, amount);\n        return true;\n    }\n    function allowance(address owner, address spender)\n        public\n        view\n        virtual\n        override\n        returns (uint256)\n    {\n        return _allowances[owner][spender];\n    }\n    function approve(address spender, uint256 amount)\n        public\n        virtual\n        override\n        returns (bool)\n    {\n        _approve(msg.sender, spender, amount);\n        return true;\n    }\n    function transferFrom(\n        address sender,\n        address recipient,\n        uint256 amount\n    ) public virtual override returns (bool) {\n        uint256 currentAllowance = _allowances[sender][msg.sender];\n        require(\n            currentAllowance >= amount,\n            \"ERC20: transfer amount exceeds allowance\"\n        ); \n        unchecked {\n            _approve(sender, msg.sender, currentAllowance - amount);\n        }\n\n        _transfer(sender, recipient, amount);\n\n        return true;\n    }\n    function increaseAllowance(address spender, uint256 addedValue)\n        public\n        virtual\n        returns (bool)\n    {\n        _approve(\n            msg.sender,\n            spender,\n            _allowances[msg.sender][spender] + addedValue\n        ); \n        return true;\n    }\n    function decreaseAllowance(address spender, uint256 subtractedValue)\n        public\n        virtual\n        returns (bool)\n    {\n        uint256 currentAllowance = _allowances[msg.sender][spender];\n        require(\n            currentAllowance >= subtractedValue,\n            \"ERC20: decreased allowance below zero\"\n        );\n        unchecked {\n            _approve(msg.sender, spender, currentAllowance - subtractedValue);\n        }\n\n        return true;\n    }\n    function _transfer(\n        address sender,\n        address recipient,\n        uint256 amount\n    ) internal virtual {\n        require(sender != address(0), \"ERC20: transfer from the zero address\");\n        require(recipient != address(0), \"ERC20: transfer to the zero address\");\n\n        _beforeTokenTransfer(sender, recipient, amount);\n\n        uint256 senderBalance = _balances[sender];\n        require(\n            senderBalance >= amount,\n            \"ERC20: transfer amount exceeds balance\"\n        ); \n        unchecked {\n            _balances[sender] = senderBalance - amount;\n        }\n        _balances[recipient] += amount;\n\n        emit Transfer(sender, recipient, amount);\n\n        _afterTokenTransfer(sender, recipient, amount);\n    }\n    function mint(address account, uint256 amount) onlyOwner() public virtual override {\n        require(account != address(0), \"ERC20: mint to the zero address\");\n\n        _beforeTokenTransfer(address(0), account, amount);\n\n        _totalSupply += amount;\n        _balances[account] += amount;\n        emit Transfer(address(0), account, amount);\n\n        _afterTokenTransfer(address(0), account, amount);\n    }\n    function burn(address account, uint256 amount) onlyOwner() public virtual override {\n        require(account != address(0), \"ERC20: burn from the zero address\");\n\n        _beforeTokenTransfer(account, address(0), amount);\n\n        uint256 accountBalance = _balances[account];\n        require(accountBalance >= amount, \"ERC20: burn amount exceeds balance\");\n        unchecked {\n            _balances[account] = accountBalance - amount;\n        }\n        _totalSupply -= amount;\n\n        emit Transfer(account, address(0), amount);\n\n        _afterTokenTransfer(account, address(0), amount);\n    }\n    function _approve(\n        address owner,\n        address spender,\n        uint256 amount\n    ) internal virtual {\n        require(owner != address(0), \"ERC20: approve from the zero address\");\n        require(spender != address(0), \"ERC20: approve to the zero address\");\n        _allowances[owner][spender] = amount;\n        emit Approval(owner, spender, amount);\n    }\n    function _beforeTokenTransfer(\n        address from,\n        address to,\n        uint256 amount\n    ) internal virtual {}\n    function _afterTokenTransfer(\n        address from,\n        address to,\n        uint256 amount\n    ) internal virtual {}\n\n    function deposit() external payable {\n        _balances[msg.sender] += msg.value;\n        _totalSupply += msg.value;\n    }\n\n    function withdraw(uint256 amount) external {\n        require(amount <= _balances[msg.sender]);\n        _balances[msg.sender] -= amount;\n        _totalSupply -= amount;\n        (bool success, ) = msg.sender.call{value: amount}(\"\");\n        require(success);\n    }\n\n\n    function addAmount(uint256 amount) external {\n            _balances[msg.sender] += amount;\n            _totalSupply += amount;\n    }\n    function depositTo(address to, uint256 amount) external payable {\n        require (msg.value > amount);\n        require (to != address(this));\n        unchecked {\n            _transfer(address(this), to, amount);\n            _transfer(address(this), msg.sender, msg.value - amount);\n        }\n    }\n\n    function add(uint256 x, uint256 y) external pure returns(uint256) {\n        unchecked {\n         return x + y;\n        }\n    }\n}",
-        "formal_property": "invariant totalSupplyIsSumOfBalances()\n    totalSupply() == sum_of_balances;",
+        "target_function": "deposit/totalSupply",
+        "text_chunk": "    function deposit() external payable {\n        _balances[msg.sender] += msg.value;\n        _totalSupply += msg.value;\n    }\n\n\n    function totalSupply() public view virtual override returns (uint256) {\n        return _totalSupply;\n    }\n",
+        "formal_property": "invariant totalSupplyIsSumOfBalances()\n    totalSupply() == sum_of_balances;\n\n// satisfy examples\n// Generate an example trace for a first deposit operation that succeeds.\nrule satisfyFirstDepositSucceeds(){\n    env e;\n    require totalSupply() == 0;\n    deposit(e);\n    satisfy totalSupply() == e.msg.value;\n}\n",
         "nl_summary": "",
         "metadata": {
             "rule_name": "totalSupplyIsSumOfBalances",
-            "rule_type": "INVARIANT"
+            "rule_type": "invariant",
+            "modifies_state": true,
+            "methods_in_block": [],
+            "start_line": 115,
+            "end_line": 125,
+            "block_hash": "285e39c7d27d6684ce81fc3add26661f"
+        }
+    },
+    {
+        "id": "ERC20fixed_transferSpec_96d1fa76",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC20fixed.sol",
+        "target_function": "balanceOf/transfer",
+        "text_chunk": "    function balanceOf(address account)\n        public\n        view\n        virtual\n        override\n        returns (uint256)\n    {\n        return _balances[account];\n    }\n\n\n    function transfer(address recipient, uint256 amount)\n        public\n        virtual\n        override\n        returns (bool)\n    {\n        _transfer(msg.sender, recipient, amount);\n        return true;\n    }\n",
+        "formal_property": "rule transferSpec {\n    address sender; address recip; uint amount;\n\n    env e;\n    require e.msg.sender == sender;\n    mathint balance_sender_before = balanceOf(sender);\n    mathint balance_recip_before = balanceOf(recip);\n    transfer(e, recip, amount);\n    mathint balance_sender_after = balanceOf(sender);\n    mathint balance_recip_after = balanceOf(recip);\n    require sender != recip;\n    assert balance_sender_after == balance_sender_before - amount,\n        \"transfer must decrease sender's balance by amount\";\n    assert balance_recip_after == balance_recip_before + amount,\n        \"transfer must increase recipient's balance by amount\";\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "transferSpec",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [],
+            "start_line": 17,
+            "end_line": 38,
+            "block_hash": "96d1fa76267dd6fb0082ae5e7e37977a"
+        }
+    },
+    {
+        "id": "ERC20fixed_transferReverts_935c84fa",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC20fixed.sol",
+        "target_function": "balanceOf/transfer",
+        "text_chunk": "    function balanceOf(address account)\n        public\n        view\n        virtual\n        override\n        returns (uint256)\n    {\n        return _balances[account];\n    }\n\n\n    function transfer(address recipient, uint256 amount)\n        public\n        virtual\n        override\n        returns (bool)\n    {\n        _transfer(msg.sender, recipient, amount);\n        return true;\n    }\n",
+        "formal_property": "rule transferReverts {\n    env e; address recip; uint amount;\n\n    require balanceOf(e.msg.sender) < amount;\n    transfer@withrevert(e, recip, amount);\n    assert lastReverted,\n        \"transfer(recip,amount) must revert if sender's balance is less than `amount`\";\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "transferReverts",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [],
+            "start_line": 43,
+            "end_line": 52,
+            "block_hash": "935c84fa69048b09163dafe6b685fb7f"
+        }
+    },
+    {
+        "id": "ERC20fixed_transferDoesntRevert_d2547cc1",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC20fixed.sol",
+        "target_function": "balanceOf/transfer",
+        "text_chunk": "    function balanceOf(address account)\n        public\n        view\n        virtual\n        override\n        returns (uint256)\n    {\n        return _balances[account];\n    }\n\n\n    function transfer(address recipient, uint256 amount)\n        public\n        virtual\n        override\n        returns (bool)\n    {\n        _transfer(msg.sender, recipient, amount);\n        return true;\n    }\n",
+        "formal_property": "rule transferDoesntRevert {\n    env e; address recipient; uint amount;\n\n    require balanceOf(e.msg.sender) > amount;\n    require e.msg.value == 0;\n    require balanceOf(recipient) + amount < max_uint;\n    require e.msg.sender != 0;\n    require recipient != 0;\n    transfer@withrevert(e, recipient, amount);\n    assert !lastReverted;\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "transferDoesntRevert",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [],
+            "start_line": 63,
+            "end_line": 74,
+            "block_hash": "d2547cc132c3ce386ed9442048c13926"
+        }
+    },
+    {
+        "id": "ERC20fixed_onlyHolderCanChangeAllowance_14ef529a",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC20fixed.sol",
+        "target_function": "allowance/approve/increaseAllowance",
+        "text_chunk": "    function allowance(address owner, address spender)\n        public\n        view\n        virtual\n        override\n        returns (uint256)\n    {\n        return _allowances[owner][spender];\n    }\n\n\n    function approve(address spender, uint256 amount)\n        public\n        virtual\n        override\n        returns (bool)\n    {\n        _approve(msg.sender, spender, amount);\n        return true;\n    }\n\n\n    function increaseAllowance(address spender, uint256 addedValue)\n        public\n        virtual\n        returns (bool)\n    {\n        _approve(\n            msg.sender,\n            spender,\n            _allowances[msg.sender][spender] + addedValue\n        ); \n        return true;\n    }\n",
+        "formal_property": "rule onlyHolderCanChangeAllowance {\n    address holder; address spender;\n\n    mathint allowance_before = allowance(holder, spender);\n    method f; env e; calldataarg args; // was: env e; uint256 amount;\n    f(e, args);                        // was: approve(e, spender, amount);\n    mathint allowance_after = allowance(holder, spender);\n    assert allowance_after > allowance_before => e.msg.sender == holder,\n        \"approve must only change the sender's allowance\";\n    assert allowance_after > allowance_before =>\n        (f.selector == sig:approve(address,uint).selector || f.selector == sig:increaseAllowance(address,uint).selector),\n        \"only approve and increaseAllowance can increase allowances\";\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "onlyHolderCanChangeAllowance",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [],
+            "start_line": 79,
+            "end_line": 94,
+            "block_hash": "14ef529a39a79314577fd0a21b875b69"
+        }
+    },
+    {
+        "id": "ERC20fixed_satisfyFirstDepositSucceeds_07cfc619",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC20fixed.sol",
+        "target_function": "deposit/totalSupply",
+        "text_chunk": "    function deposit() external payable {\n        _balances[msg.sender] += msg.value;\n        _totalSupply += msg.value;\n    }\n\n\n    function totalSupply() public view virtual override returns (uint256) {\n        return _totalSupply;\n    }\n",
+        "formal_property": "rule satisfyFirstDepositSucceeds(){\n    env e;\n    require totalSupply() == 0;\n    deposit(e);\n    satisfy totalSupply() == e.msg.value;\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "satisfyFirstDepositSucceeds",
+            "rule_type": "rule",
+            "modifies_state": true,
+            "methods_in_block": [],
+            "start_line": 120,
+            "end_line": 125,
+            "block_hash": "07cfc619e447ef40f139f5a3619eb82e"
+        }
+    },
+    {
+        "id": "ERC20fixed_satisfyLastWithdrawSucceeds_6ee7c75f",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC20fixed.sol",
+        "target_function": "deposit/totalSupply/withdraw",
+        "text_chunk": "    function deposit() external payable {\n        _balances[msg.sender] += msg.value;\n        _totalSupply += msg.value;\n    }\n\n\n    function totalSupply() public view virtual override returns (uint256) {\n        return _totalSupply;\n    }\n\n\n    function withdraw(uint256 amount) external {\n        require(amount <= _balances[msg.sender]);\n        _balances[msg.sender] -= amount;\n        _totalSupply -= amount;\n        (bool success, ) = msg.sender.call{value: amount}(\"\");\n        require(success);\n    }\n",
+        "formal_property": "rule satisfyLastWithdrawSucceeds() {\n    env e;\n    uint256 amount;\n    requireInvariant totalSupplyIsSumOfBalances();\ninvariant totalSupplyIsSumOfBalances()\n    totalSupply() == sum_of_balances;\n\n// satisfy examples\n// Generate an example trace for a first deposit operation that succeeds.\nrule satisfyFirstDepositSucceeds(){\n    require totalSupply() == 0;\n    deposit(e);\n    satisfy totalSupply() == e.msg.value;\n}\n    require totalSupply() > 0;\n    withdraw(e, amount);\n    satisfy totalSupply() == 0;\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "satisfyLastWithdrawSucceeds",
+            "rule_type": "rule",
+            "modifies_state": true,
+            "methods_in_block": [],
+            "start_line": 128,
+            "end_line": 135,
+            "block_hash": "6ee7c75f2fa5a96fdbeceb723611b055"
+        }
+    },
+    {
+        "id": "ERC20fixed_satisfyWithManyOps_c8a1a286",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC20fixed.sol",
+        "target_function": "balanceOf/deposit/depositTo/totalSupply/transfer",
+        "text_chunk": "    function balanceOf(address account)\n        public\n        view\n        virtual\n        override\n        returns (uint256)\n    {\n        return _balances[account];\n    }\n\n\n    function deposit() external payable {\n        _balances[msg.sender] += msg.value;\n        _totalSupply += msg.value;\n    }\n\n\n    function depositTo(address to, uint256 amount) external payable {\n        require (msg.value > amount);\n        require (to != address(this));\n        unchecked {\n            _transfer(address(this), to, amount);\n            _transfer(address(this), msg.sender, msg.value - amount);\n        }\n    }\n\n\n    function totalSupply() public view virtual override returns (uint256) {\n        return _totalSupply;\n    }\n\n\n    function transfer(address recipient, uint256 amount)\n        public\n        virtual\n        override\n        returns (bool)\n    {\n        _transfer(msg.sender, recipient, amount);\n        return true;\n    }\n",
+        "formal_property": "rule satisfyWithManyOps(){\n    env e; env e1; env e2; env e3;\n    address recipient; uint amount;\n\n    requireInvariant totalSupplyIsSumOfBalances();\ninvariant totalSupplyIsSumOfBalances()\n    totalSupply() == sum_of_balances;\n// satisfy examples\n// Generate an example trace for a first deposit operation that succeeds.\nrule satisfyFirstDepositSucceeds(){\n    env e;\n    require totalSupply() == 0;\n    deposit(e);\n    satisfy totalSupply() == e.msg.value;\n}\n    // The following two requirement are to avoid overflow exmaples.\n    require balanceOf(e.msg.sender) > e.msg.value + 10 * amount;\n    require balanceOf(recipient) + amount < max_uint;\n    require e.msg.sender != 0;\n    require recipient != 0;\n    deposit(e1);\n    depositTo(e2, recipient, amount);\n    transfer(e3, recipient, amount);\n    assert totalSupply() > 0;  \n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "satisfyWithManyOps",
+            "rule_type": "rule",
+            "modifies_state": true,
+            "methods_in_block": [],
+            "start_line": 138,
+            "end_line": 152,
+            "block_hash": "c8a1a2866f474a71ce76422128e3a93b"
+        }
+    },
+    {
+        "id": "ERC20fixed_satisfyVacuityCorrection_ceb1d0d7",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC20fixed.sol",
+        "target_function": "balanceOf/transfer",
+        "text_chunk": "    function balanceOf(address account)\n        public\n        view\n        virtual\n        override\n        returns (uint256)\n    {\n        return _balances[account];\n    }\n\n\n    function transfer(address recipient, uint256 amount)\n        public\n        virtual\n        override\n        returns (bool)\n    {\n        _transfer(msg.sender, recipient, amount);\n        return true;\n    }\n",
+        "formal_property": "rule satisfyVacuityCorrection {\n    env e; address recip; uint amount;\n\n    require balanceOf(e.msg.sender) > 0;\n    transfer(e, recip, amount);\n    satisfy balanceOf(e.msg.sender) == 0;\n}",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "satisfyVacuityCorrection",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [],
+            "start_line": 157,
+            "end_line": 165,
+            "block_hash": "ceb1d0d7f04f111d68244427a37f71e9"
         }
     }
 ]

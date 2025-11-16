@@ -12,7 +12,28 @@
                 "setBorrowing",
                 "isBorrowing"
             ],
+            "state_variables": [
+                "data"
+            ],
             "is_standard": "UNKNOWN"
+        }
+    },
+    {
+        "id": "PreciseBitwiseOps_setBorrowing_499152eb",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "PreciseBitwiseOps.sol",
+        "target_function": "isBorrowing/setBorrowing",
+        "text_chunk": "  function isBorrowing(\n    uint256 reserveIndex\n  ) public view returns (bool) {\n    unchecked {\n      require(reserveIndex < MAX_RESERVES_COUNT, INVALID_RESERVE_INDEX);\n      return (data >> (reserveIndex << 1)) & 1 != 0;\n    }\n  }\n\n\n    function setBorrowing(\n    uint256 reserveIndex,\n    bool borrowing\n  ) public {\n    unchecked {\n      require(reserveIndex < MAX_RESERVES_COUNT, INVALID_RESERVE_INDEX);\n      uint256 bit = 1 << (reserveIndex << 1);\n      if (borrowing) {\n        data |= bit;\n      } else {\n        data &= ~bit;\n      }\n    }\n  }\n",
+        "formal_property": "rule setBorrowing(uint256 reserveIndex, bool borrowing)\n{\t\n\tsetBorrowing(reserveIndex, borrowing);\n\tassert isBorrowing(reserveIndex) == borrowing, \"unexpected result\";\n}",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "setBorrowing",
+            "rule_type": "rule",
+            "modifies_state": true,
+            "methods_in_block": [],
+            "start_line": 8,
+            "end_line": 12,
+            "block_hash": "499152ebededff1a5ec397cb8f497c9b"
         }
     }
 ]

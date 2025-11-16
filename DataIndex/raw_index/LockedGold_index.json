@@ -48,20 +48,179 @@
                 "removeSlasher",
                 "slash"
             ],
+            "state_variables": [
+                "delegateesWithPercentagesAndAmount",
+                "nonvoting",
+                "slashingWhitelist",
+                "totalDelegatedCelo",
+                "totalNonvoting",
+                "slashingMap",
+                "currentAmount",
+                "maxDelegateesCount",
+                "payable",
+                "delegatorInfo",
+                "balances",
+                "timestamp",
+                "value",
+                "unlockingPeriod"
+            ],
             "is_standard": "UNKNOWN"
         }
     },
     {
-        "id": "LockedGold_check_initializer",
+        "id": "LockedGold_totalNonVotingGEAccountNonVoting_9a241ef1",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "LockedGold.sol",
+        "target_function": "decrementNonvotingAccountBalance/getAccountNonvotingLockedGold/getNonvotingLockedGold/incrementNonvotingAccountBalance/lock/slash/unlock",
+        "text_chunk": "  function decrementNonvotingAccountBalance(address account, uint256 value)\n    external\n    onlyRegisteredContract(ELECTION_REGISTRY_ID)\n  {\n    _decrementNonvotingAccountBalance(account, value);\n  }\n\n\n  function getAccountNonvotingLockedGold(address account) external view returns (uint256) {\n    return balances[account].nonvoting;\n  }\n\n\n  function getNonvotingLockedGold() external view returns (uint256) {\n    return totalNonvoting;\n  }\n\n\n  function incrementNonvotingAccountBalance(address account, uint256 value)\n    external\n    onlyRegisteredContract(ELECTION_REGISTRY_ID)\n  {\n    _incrementNonvotingAccountBalance(account, value);\n  }\n\n\n  function lock() external payable nonReentrant {\n    require(\n      getAccounts().isAccount(msg.sender),\n      \"Must first register address with Account.createAccount\"\n    );\n    _incrementNonvotingAccountBalance(msg.sender, msg.value);\n    _updateDelegatedAmount(msg.sender);\n    emit GoldLocked(msg.sender, msg.value);\n  }\n\n\n  function slash(\n    address account,\n    uint256 penalty,\n    address reporter,\n    uint256 reward,\n    address[] calldata lessers,\n    address[] calldata greaters,\n    uint256[] calldata indices\n  ) external onlySlasher {\n    uint256 maxSlash = Math.min(penalty, getAccountTotalLockedGold(account));\n    require(maxSlash >= reward, \"reward cannot exceed penalty.\");\n    // `reporter` receives the reward in locked CELO, so it must be given to an account\n    // There is no reward for slashing via the GovernanceSlasher, and `reporter`\n    // is set to 0x0.\n    if (reporter != address(0)) {\n      reporter = getAccounts().signerToAccount(reporter);\n    }\n    // Local scoping is required to avoid Solc \"stack too deep\" error from too many locals.\n    {\n      uint256 nonvotingBalance = balances[account].nonvoting;\n      uint256 difference = 0;\n      // If not enough nonvoting, revoke the difference\n      if (nonvotingBalance < maxSlash) {\n        difference = maxSlash.sub(nonvotingBalance);\n        require(\n          getElection().forceDecrementVotes(account, difference, lessers, greaters, indices) ==\n            difference,\n          \"Cannot revoke enough voting gold.\"\n        );\n      }\n      // forceDecrementVotes does not increment nonvoting account balance, so we can't double count\n      _decrementNonvotingAccountBalance(account, maxSlash.sub(difference));\n      _incrementNonvotingAccountBalance(reporter, reward);\n    }\n    address communityFund = registry.getAddressForOrDie(GOVERNANCE_REGISTRY_ID);\n    address payable communityFundPayable = address(uint160(communityFund));\n    require(maxSlash.sub(reward) <= address(this).balance, \"Inconsistent balance\");\n    communityFundPayable.sendValue(maxSlash.sub(reward));\n    emit AccountSlashed(account, maxSlash, reporter, reward);\n  }\n\n\n  function unlock(uint256 value) external nonReentrant {\n    require(\n      getAccounts().isAccount(msg.sender),\n      \"Sender must be registered with Account.createAccount to lock or unlock\"\n    );\n    Balances storage account = balances[msg.sender];\n\n    uint256 totalLockedGold = getAccountTotalLockedGold(msg.sender);\n    // Prevent unlocking gold when voting on governance proposals so that the gold cannot be\n    // used to vote more than once.\n    uint256 remainingLockedGold = totalLockedGold.sub(value);\n\n    uint256 totalReferendumVotes = getGovernance().getAmountOfGoldUsedForVoting(msg.sender);\n    require(\n      remainingLockedGold >= totalReferendumVotes,\n      \"Not enough unlockable celo. Celo is locked in voting.\"\n    );\n\n    FixidityLib.Fraction memory delegatedPercentage = delegatorInfo[msg.sender]\n      .totalDelegatedCeloFraction;\n\n    if (FixidityLib.gt(delegatedPercentage, FixidityLib.newFixed(0))) {\n      revokeFromDelegatedWhenUnlocking(msg.sender, value);\n    }\n\n    uint256 balanceRequirement = getValidators().getAccountLockedGoldRequirement(msg.sender);\n    require(\n      balanceRequirement == 0 || balanceRequirement <= remainingLockedGold,\n      \"Either account doesn't have enough locked Celo or locked Celo is being used for voting.\"\n    );\n    _decrementNonvotingAccountBalance(msg.sender, value);\n    uint256 available = now.add(unlockingPeriod);\n    // CERTORA: the slot containing the length could be MAX_UINT\n    account.pendingWithdrawals.push(PendingWithdrawal(value, available));\n    emit GoldUnlocked(msg.sender, value, available);\n  }\n",
+        "formal_property": "rule totalNonVotingGEAccountNonVoting(address a, method f) {\n\trequire(sinvoke getNonvotingLockedGold()  >= sinvoke getAccountNonvotingLockedGold(a));\n\trequire(\n    f.selector != decrementNonvotingAccountBalance(address,uint256).selector &&\n    f.selector != incrementNonvotingAccountBalance(address,uint256).selector\n  );\n\tenv eF; \n    (f.selector != unlock(uint256).selector || eF.msg.sender == a) &&\n    f.selector != slash(address,uint256,address,uint256,address[],address[],uint256[]).selector\n\tcalldataarg arg;\n\tsinvoke f(eF,arg);\n\tassert(sinvoke getNonvotingLockedGold() >= sinvoke getAccountNonvotingLockedGold(a));\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "totalNonVotingGEAccountNonVoting",
+            "rule_type": "rule",
+            "modifies_state": true,
+            "methods_in_block": [
+                "getNonvotingLockedGold",
+                "getAccountNonvotingLockedGold",
+                "incrementNonvotingAccountBalance",
+                "decrementNonvotingAccountBalance",
+                "unlock"
+            ],
+            "start_line": 27,
+            "end_line": 41,
+            "block_hash": "9a241ef1d93b65fa53961700b811aa8c"
+        }
+    },
+    {
+        "id": "LockedGold_totalPreserved_4034bb21",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "LockedGold.sol",
+        "target_function": "decrementNonvotingAccountBalance/getAccountNonvotingLockedGold/getTotalPendingWithdrawals/incrementNonvotingAccountBalance/slash",
+        "text_chunk": "  function decrementNonvotingAccountBalance(address account, uint256 value)\n    external\n    onlyRegisteredContract(ELECTION_REGISTRY_ID)\n  {\n    _decrementNonvotingAccountBalance(account, value);\n  }\n\n\n  function getAccountNonvotingLockedGold(address account) external view returns (uint256) {\n    return balances[account].nonvoting;\n  }\n\n\n  function getTotalPendingWithdrawals(address account) external view returns (uint256) {\n    uint256 pendingWithdrawalSum = 0;\n    PendingWithdrawal[] memory withdrawals = balances[account].pendingWithdrawals;\n    for (uint256 i = 0; i < withdrawals.length; i = i.add(1)) {\n      pendingWithdrawalSum = pendingWithdrawalSum.add(withdrawals[i].value);\n    }\n    return pendingWithdrawalSum;\n  }\n\n\n  function incrementNonvotingAccountBalance(address account, uint256 value)\n    external\n    onlyRegisteredContract(ELECTION_REGISTRY_ID)\n  {\n    _incrementNonvotingAccountBalance(account, value);\n  }\n\n\n  function slash(\n    address account,\n    uint256 penalty,\n    address reporter,\n    uint256 reward,\n    address[] calldata lessers,\n    address[] calldata greaters,\n    uint256[] calldata indices\n  ) external onlySlasher {\n    uint256 maxSlash = Math.min(penalty, getAccountTotalLockedGold(account));\n    require(maxSlash >= reward, \"reward cannot exceed penalty.\");\n    // `reporter` receives the reward in locked CELO, so it must be given to an account\n    // There is no reward for slashing via the GovernanceSlasher, and `reporter`\n    // is set to 0x0.\n    if (reporter != address(0)) {\n      reporter = getAccounts().signerToAccount(reporter);\n    }\n    // Local scoping is required to avoid Solc \"stack too deep\" error from too many locals.\n    {\n      uint256 nonvotingBalance = balances[account].nonvoting;\n      uint256 difference = 0;\n      // If not enough nonvoting, revoke the difference\n      if (nonvotingBalance < maxSlash) {\n        difference = maxSlash.sub(nonvotingBalance);\n        require(\n          getElection().forceDecrementVotes(account, difference, lessers, greaters, indices) ==\n            difference,\n          \"Cannot revoke enough voting gold.\"\n        );\n      }\n      // forceDecrementVotes does not increment nonvoting account balance, so we can't double count\n      _decrementNonvotingAccountBalance(account, maxSlash.sub(difference));\n      _incrementNonvotingAccountBalance(reporter, reward);\n    }\n    address communityFund = registry.getAddressForOrDie(GOVERNANCE_REGISTRY_ID);\n    address payable communityFundPayable = address(uint160(communityFund));\n    require(maxSlash.sub(reward) <= address(this).balance, \"Inconsistent balance\");\n    communityFundPayable.sendValue(maxSlash.sub(reward));\n    emit AccountSlashed(account, maxSlash, reporter, reward);\n  }\n",
+        "formal_property": "rule totalPreserved(address account, method f) {\n\t// We assume the sender is not the currentContract\n\trequire(account != currentContract);\n\tuint256 _ercBalance = sinvoke ercBalanceOf(account); \n\tuint256 _accountNonVoting = sinvoke getAccountNonvotingLockedGold(account);\n\tuint256 _accountTotalPendingWithdrawals =  sinvoke getTotalPendingWithdrawals(account);\n\t// We limit the amount of pending records due to loop handling \n\trequire sinvoke getPendingWithdrawalsLength(account) <= 1;\n\tenv eF;\n\trequire(eF.msg.sender == account);\n\t// These three function are exceptions to the rule (they are designed to affect total)\n\trequire(\n    f.selector != decrementNonvotingAccountBalance(address,uint256).selector &&\n    f.selector != incrementNonvotingAccountBalance(address,uint256).selector &&\n    f.selector != slash(address,uint256,address,uint256,address[],address[],uint256[]).selector\n  );\n\tcalldataarg arg;\n\tsinvoke f(eF,arg);\n\tuint length = sinvoke getPendingWithdrawalsLength(account);\n\trequire(length <= 1);\n\tuint256 ercBalance_ = sinvoke ercBalanceOf(account);\n\tuint256 accountNonVoting_ = sinvoke getAccountNonvotingLockedGold(account);\n\tuint256 accountTotalPendingWithdrawals_ =  sinvoke getTotalPendingWithdrawals(account);\n  assert(\n    _ercBalance + _accountNonVoting + _accountTotalPendingWithdrawals ==\n    ercBalance_ + accountNonVoting_ + accountTotalPendingWithdrawals_,\n    \"Total of tokens not preserved\"\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "totalPreserved",
+            "rule_type": "rule",
+            "modifies_state": true,
+            "methods_in_block": [
+                "getAccountNonvotingLockedGold",
+                "ercBalanceOf",
+                "getTotalPendingWithdrawals",
+                "getPendingWithdrawalsLength",
+                "incrementNonvotingAccountBalance",
+                "decrementNonvotingAccountBalance"
+            ],
+            "start_line": 46,
+            "end_line": 75,
+            "block_hash": "4034bb2100eb9bf27d0cd96e52135aaf"
+        }
+    },
+    {
+        "id": "LockedGold_noChangeByOther_5e88b77c",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "LockedGold.sol",
+        "target_function": "decrementNonvotingAccountBalance/getAccountNonvotingLockedGold/getTotalPendingWithdrawals/incrementNonvotingAccountBalance/slash/withdraw",
+        "text_chunk": "  function decrementNonvotingAccountBalance(address account, uint256 value)\n    external\n    onlyRegisteredContract(ELECTION_REGISTRY_ID)\n  {\n    _decrementNonvotingAccountBalance(account, value);\n  }\n\n\n  function getAccountNonvotingLockedGold(address account) external view returns (uint256) {\n    return balances[account].nonvoting;\n  }\n\n\n  function getTotalPendingWithdrawals(address account) external view returns (uint256) {\n    uint256 pendingWithdrawalSum = 0;\n    PendingWithdrawal[] memory withdrawals = balances[account].pendingWithdrawals;\n    for (uint256 i = 0; i < withdrawals.length; i = i.add(1)) {\n      pendingWithdrawalSum = pendingWithdrawalSum.add(withdrawals[i].value);\n    }\n    return pendingWithdrawalSum;\n  }\n\n\n  function incrementNonvotingAccountBalance(address account, uint256 value)\n    external\n    onlyRegisteredContract(ELECTION_REGISTRY_ID)\n  {\n    _incrementNonvotingAccountBalance(account, value);\n  }\n\n\n  function slash(\n    address account,\n    uint256 penalty,\n    address reporter,\n    uint256 reward,\n    address[] calldata lessers,\n    address[] calldata greaters,\n    uint256[] calldata indices\n  ) external onlySlasher {\n    uint256 maxSlash = Math.min(penalty, getAccountTotalLockedGold(account));\n    require(maxSlash >= reward, \"reward cannot exceed penalty.\");\n    // `reporter` receives the reward in locked CELO, so it must be given to an account\n    // There is no reward for slashing via the GovernanceSlasher, and `reporter`\n    // is set to 0x0.\n    if (reporter != address(0)) {\n      reporter = getAccounts().signerToAccount(reporter);\n    }\n    // Local scoping is required to avoid Solc \"stack too deep\" error from too many locals.\n    {\n      uint256 nonvotingBalance = balances[account].nonvoting;\n      uint256 difference = 0;\n      // If not enough nonvoting, revoke the difference\n      if (nonvotingBalance < maxSlash) {\n        difference = maxSlash.sub(nonvotingBalance);\n        require(\n          getElection().forceDecrementVotes(account, difference, lessers, greaters, indices) ==\n            difference,\n          \"Cannot revoke enough voting gold.\"\n        );\n      }\n      // forceDecrementVotes does not increment nonvoting account balance, so we can't double count\n      _decrementNonvotingAccountBalance(account, maxSlash.sub(difference));\n      _incrementNonvotingAccountBalance(reporter, reward);\n    }\n    address communityFund = registry.getAddressForOrDie(GOVERNANCE_REGISTRY_ID);\n    address payable communityFundPayable = address(uint160(communityFund));\n    require(maxSlash.sub(reward) <= address(this).balance, \"Inconsistent balance\");\n    communityFundPayable.sendValue(maxSlash.sub(reward));\n    emit AccountSlashed(account, maxSlash, reporter, reward);\n  }\n\n\n  function withdraw(uint256 index) external nonReentrant {\n    require(\n      getAccounts().isAccount(msg.sender),\n      \"Sender must be registered with Account.createAccount to withdraw\"\n    );\n    Balances storage account = balances[msg.sender];\n    require(index < account.pendingWithdrawals.length, \"Bad pending withdrawal index\");\n    PendingWithdrawal storage pendingWithdrawal = account.pendingWithdrawals[index];\n    require(now >= pendingWithdrawal.timestamp, \"Pending withdrawal not available\");\n    uint256 value = pendingWithdrawal.value;\n    deletePendingWithdrawal(account.pendingWithdrawals, index);\n    require(value <= address(this).balance, \"Inconsistent balance\");\n    msg.sender.sendValue(value);\n    emit GoldWithdrawn(msg.sender, value);\n  }\n",
+        "formal_property": "rule noChangeByOther(address a, address b, method f) {\n\trequire(a != b);\n\t// We assume the sender is not the currentContract\n\trequire(\n    a != currentContract &&\n    (a == sinvoke getGoldTokenExt() => f.selector != withdraw(uint256).selector));\n\tuint256 _ercBalance = sinvoke ercBalanceOf(a);\n\tuint256 _accountNonVoting = sinvoke getAccountNonvotingLockedGold(a);\n\tuint256 _accountTotalPendingWithdrawals =  sinvoke getTotalPendingWithdrawals(a);\n\t// We limit the amount of pending records due to loop handling \n\tuint length = sinvoke getPendingWithdrawalsLength(a);\n\trequire(length <= 1);\n\tenv eF;\n\trequire(eF.msg.sender == b);\n\tcalldataarg arg;\n    f.selector != decrementNonvotingAccountBalance(address,uint256).selector &&\n    f.selector != incrementNonvotingAccountBalance(address,uint256).selector &&\n    f.selector != slash(address,uint256,address,uint256,address[],address[],uint256[]).selector\n  );\n\tsinvoke f(eF,arg);\n\tuint256 ercBalance_ = sinvoke ercBalanceOf(a); \n\tuint256 accountNonVoting_ = sinvoke getAccountNonvotingLockedGold(a);\n\tuint256 accountTotalPendingWithdrawals_ =  sinvoke getTotalPendingWithdrawals(a);\n\tassert(f.selector != withdraw(uint256).selector => _ercBalance == ercBalance_, \"Unexpected change to erc tokens\");\n\tassert(_accountTotalPendingWithdrawals == accountTotalPendingWithdrawals_, \"Unexpected change to total pending\");\n\tassert(_accountNonVoting == accountNonVoting_, \"Unexpected change to account nonvoting\");\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "noChangeByOther",
+            "rule_type": "rule",
+            "modifies_state": true,
+            "methods_in_block": [
+                "getAccountNonvotingLockedGold",
+                "ercBalanceOf",
+                "getTotalPendingWithdrawals",
+                "getPendingWithdrawalsLength",
+                "incrementNonvotingAccountBalance",
+                "decrementNonvotingAccountBalance",
+                "getGoldTokenExt"
+            ],
+            "start_line": 80,
+            "end_line": 107,
+            "block_hash": "5e88b77ce11bf44dd69edfc03ca66f57"
+        }
+    },
+    {
+        "id": "LockedGold_verifies_6c8067de",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "LockedGold.sol",
+        "target_function": "withdraw",
+        "text_chunk": "  function withdraw(uint256 index) external nonReentrant {\n    require(\n      getAccounts().isAccount(msg.sender),\n      \"Sender must be registered with Account.createAccount to withdraw\"\n    );\n    Balances storage account = balances[msg.sender];\n    require(index < account.pendingWithdrawals.length, \"Bad pending withdrawal index\");\n    PendingWithdrawal storage pendingWithdrawal = account.pendingWithdrawals[index];\n    require(now >= pendingWithdrawal.timestamp, \"Pending withdrawal not available\");\n    uint256 value = pendingWithdrawal.value;\n    deletePendingWithdrawal(account.pendingWithdrawals, index);\n    require(value <= address(this).balance, \"Inconsistent balance\");\n    msg.sender.sendValue(value);\n    emit GoldWithdrawn(msg.sender, value);\n  }\n",
+        "formal_property": " * This rule verifies the Certora Prover is correctly modeling the behavior of GoldToken._transfer.\n */\nrule withdraw(uint256 index) {\n\tenv e;\n\tuint256 _balance = sinvoke ercBalanceOf(e.msg.sender);\n\tuint256 val = sinvoke getPendingWithdrawalsIndex(e.msg.sender, index);\n\tsinvoke withdraw(e, index);\n\trequire (e.msg.sender != currentContract);\n\tuint256 balance_ = sinvoke ercBalanceOf(e.msg.sender);\n\tassert(\n    _balance + val == balance_,\n    \"Withdraw balance not updated\"\n  );\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "verifies",
+            "rule_type": "rule",
+            "modifies_state": true,
+            "methods_in_block": [
+                "ercBalanceOf",
+                "getPendingWithdrawalsIndex"
+            ],
+            "start_line": 110,
+            "end_line": 123,
+            "block_hash": "6c8067de90cb88b7195a8f08e68ed869"
+        }
+    },
+    {
+        "id": "LockedGold_noWithdrawBeforeUnlocking_d3cd211f",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "LockedGold.sol",
+        "target_function": "getAccountNonvotingLockedGold/getTotalPendingWithdrawals/lock/unlock",
+        "text_chunk": "  function getAccountNonvotingLockedGold(address account) external view returns (uint256) {\n    return balances[account].nonvoting;\n  }\n\n\n  function getTotalPendingWithdrawals(address account) external view returns (uint256) {\n    uint256 pendingWithdrawalSum = 0;\n    PendingWithdrawal[] memory withdrawals = balances[account].pendingWithdrawals;\n    for (uint256 i = 0; i < withdrawals.length; i = i.add(1)) {\n      pendingWithdrawalSum = pendingWithdrawalSum.add(withdrawals[i].value);\n    }\n    return pendingWithdrawalSum;\n  }\n\n\n  function lock() external payable nonReentrant {\n    require(\n      getAccounts().isAccount(msg.sender),\n      \"Must first register address with Account.createAccount\"\n    );\n    _incrementNonvotingAccountBalance(msg.sender, msg.value);\n    _updateDelegatedAmount(msg.sender);\n    emit GoldLocked(msg.sender, msg.value);\n  }\n\n\n  function unlock(uint256 value) external nonReentrant {\n    require(\n      getAccounts().isAccount(msg.sender),\n      \"Sender must be registered with Account.createAccount to lock or unlock\"\n    );\n    Balances storage account = balances[msg.sender];\n\n    uint256 totalLockedGold = getAccountTotalLockedGold(msg.sender);\n    // Prevent unlocking gold when voting on governance proposals so that the gold cannot be\n    // used to vote more than once.\n    uint256 remainingLockedGold = totalLockedGold.sub(value);\n\n    uint256 totalReferendumVotes = getGovernance().getAmountOfGoldUsedForVoting(msg.sender);\n    require(\n      remainingLockedGold >= totalReferendumVotes,\n      \"Not enough unlockable celo. Celo is locked in voting.\"\n    );\n\n    FixidityLib.Fraction memory delegatedPercentage = delegatorInfo[msg.sender]\n      .totalDelegatedCeloFraction;\n\n    if (FixidityLib.gt(delegatedPercentage, FixidityLib.newFixed(0))) {\n      revokeFromDelegatedWhenUnlocking(msg.sender, value);\n    }\n\n    uint256 balanceRequirement = getValidators().getAccountLockedGoldRequirement(msg.sender);\n    require(\n      balanceRequirement == 0 || balanceRequirement <= remainingLockedGold,\n      \"Either account doesn't have enough locked Celo or locked Celo is being used for voting.\"\n    );\n    _decrementNonvotingAccountBalance(msg.sender, value);\n    uint256 available = now.add(unlockingPeriod);\n    // CERTORA: the slot containing the length could be MAX_UINT\n    account.pendingWithdrawals.push(PendingWithdrawal(value, available));\n    emit GoldUnlocked(msg.sender, value, available);\n  }\n",
+        "formal_property": "rule noWithdrawBeforeUnlocking(address account, uint256 value, method f) {\n\t// We must make sure the length of pending withdrawals is not MAX_UINT, since then the `push` will make the length 0.\n\t// (this should have been checked by the solidity compiler)\n\trequire(sinvoke pendingWithdrawalsNotFull(account), \"Pending withdrawals are full\");\n\t\n\t// Unlock a value and add it to pending withdrawals\n\tenv _e;\n\trequire(_e.msg.sender == account);\n\tsinvoke unlock(_e,value);\n\n\t// Try to run any function - adversary's goal is to succeed in unlocking before time\n\tenv eF;\n\trequire(eF.block.timestamp > _e.block.timestamp);\n\tcalldataarg arg;\n\tsinvoke f(eF,arg);\n\t// We check if adversary succeeded\n\tuint256 totalPendingWithdrawals_ = sinvoke getTotalPendingWithdrawals(account);\n\tassert(\n    eF.block.timestamp < _e.block.timestamp + sinvoke getunlockingPeriod() =>\n    sinvoke getAccountNonvotingLockedGold(account) + totalPendingWithdrawals_ >= value,\n    \"If we are before the unlock period passed, we cannot transfer the value outside the locked balance or pending balance\"\n  );\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "noWithdrawBeforeUnlocking",
+            "rule_type": "rule",
+            "modifies_state": true,
+            "methods_in_block": [
+                "getAccountNonvotingLockedGold",
+                "getTotalPendingWithdrawals",
+                "getunlockingPeriod",
+                "unlock",
+                "pendingWithdrawalsNotFull"
+            ],
+            "start_line": 128,
+            "end_line": 150,
+            "block_hash": "d3cd211f660661751be259df4c993a64"
+        }
+    },
+    {
+        "id": "LockedGold_only_initializer_changes_initialized_field_4845a6a5",
         "chunk_type": "FUNCTION_RULE",
         "source_contract": "LockedGold.sol",
         "target_function": "initialize",
-        "text_chunk": "function initialize(address registryAddress, uint256 _unlockingPeriod) external initializer {\n    _transferOwnership(msg.sender);\n    setRegistry(registryAddress);\n    setUnlockingPeriod(_unlockingPeriod);\n    maxDelegateesCount = 10;\n  }",
-        "formal_property": "rule check_initializer {\n\tenv _e;\n\tenv eF;\n\tenv e_;\n\t\n\tbool _isInitialized = sinvoke initialized(_e);\n\tcalldataarg arg;\n\tinvoke initialize(eF,arg);\n\tbool successInit = !lastReverted;\n\tbool isInitialized_ = sinvoke initialized(e_);\n\tassert(\n    _isInitialized => !successInit,\n    \"Initialize() must revert if already initialized\"\n  );\n\tassert(\n    successInit => isInitialized_,\n    \"When initialize() succeeds, must set initialization field to true\"\n  );\n}",
+        "text_chunk": "  function initialize(address registryAddress, uint256 _unlockingPeriod) external initializer {\n    _transferOwnership(msg.sender);\n    setRegistry(registryAddress);\n    setUnlockingPeriod(_unlockingPeriod);\n    maxDelegateesCount = 10;\n  }\n",
+        "formal_property": "rule only_initializer_changes_initialized_field(method f) {\n\tenv _e;\n\tenv eF;\n\tenv e_;\n\n\tbool _isInitialized = sinvoke initialized(_e);\n\trequire(f.selector != initialize(address,uint256).selector);\n\tcalldataarg arg;\n\tinvoke f(eF,arg);\n\tbool isInitialized_ = sinvoke initialized(e_);\n\tassert(\n    _isInitialized == isInitialized_,\n    \"Method $f is not expected to change initialization field from ${_isInitialized} to ${isInitialized_}\"\n  );\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "only_initializer_changes_initialized_field",
+            "rule_type": "rule",
+            "modifies_state": true,
+            "methods_in_block": [],
+            "start_line": 155,
+            "end_line": 169,
+            "block_hash": "4845a6a51f82896b7b5d2178ee55253c"
+        }
+    },
+    {
+        "id": "LockedGold_check_initializer_b13f6a6b",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "LockedGold.sol",
+        "target_function": "initialize",
+        "text_chunk": "  function initialize(address registryAddress, uint256 _unlockingPeriod) external initializer {\n    _transferOwnership(msg.sender);\n    setRegistry(registryAddress);\n    setUnlockingPeriod(_unlockingPeriod);\n    maxDelegateesCount = 10;\n  }\n",
+        "formal_property": "rule check_initializer {\n\tenv _e;\n\tenv eF;\n\tenv e_;\n\t\n\tbool _isInitialized = sinvoke initialized(_e);\n\tcalldataarg arg;\n\tinvoke initialize(eF,arg);\n\tbool successInit = !lastReverted;\n\tbool isInitialized_ = sinvoke initialized(e_);\n\tassert(\n    _isInitialized => !successInit,\n    \"Initialize() must revert if already initialized\"\n  );\n    successInit => isInitialized_,\n    \"When initialize() succeeds, must set initialization field to true\"\n}\n",
         "nl_summary": "",
         "metadata": {
             "rule_name": "check_initializer",
-            "rule_type": "RULE"
+            "rule_type": "rule",
+            "modifies_state": true,
+            "methods_in_block": [],
+            "start_line": 176,
+            "end_line": 194,
+            "block_hash": "b13f6a6b98ccd62675328b9108beb504"
         }
     }
 ]

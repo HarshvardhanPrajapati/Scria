@@ -14,33 +14,203 @@
                 "withdrawTo",
                 "_recover"
             ],
+            "state_variables": [],
             "is_standard": "UNKNOWN"
         }
     },
     {
-        "id": "ERC20Wrapper_whatAboutTotal",
+        "id": "ERC20Wrapper_whatAboutTotal_57706f22",
         "chunk_type": "CONTRACT_INVARIANT",
         "source_contract": "ERC20Wrapper.sol",
         "target_function": "ALL",
         "text_chunk": "// SPDX-License-Identifier: MIT\n// OpenZeppelin Contracts (last updated v4.6.0) (token/ERC20/extensions/ERC20Wrapper.sol)\n\npragma solidity ^0.8.0;\n\nimport \"../ERC20.sol\";\nimport \"../utils/SafeERC20.sol\";\n\nabstract contract ERC20Wrapper is ERC20 {\n    IERC20 public immutable underlying;\n\n    constructor(IERC20 underlyingToken) {\n        underlying = underlyingToken;\n    }\n    function decimals() public view virtual override returns (uint8) {\n        try IERC20Metadata(address(underlying)).decimals() returns (uint8 value) {\n            return value;\n        } catch {\n            return super.decimals();\n        }\n    }\n    function depositFor(address account, uint256 amount) public virtual returns (bool) {\n        SafeERC20.safeTransferFrom(underlying, _msgSender(), address(this), amount);\n        _mint(account, amount);\n        return true;\n    }\n    function withdrawTo(address account, uint256 amount) public virtual returns (bool) {\n        _burn(_msgSender(), amount);\n        SafeERC20.safeTransfer(underlying, account, amount);\n        return true;\n    }\n    function _recover(address account) internal virtual returns (uint256) {\n        uint256 value = underlying.balanceOf(address(this)) - totalSupply();\n        _mint(account, value);\n        return value;\n    }\n}\n",
-        "formal_property": "invariant whatAboutTotal(env e)\n    totalSupply(e) <= underlyingTotalSupply()\n    filtered { f -> f.selector != certorafallback_0().selector && !f.isView}\n    {\n        preserved {\n            require underlyingBalanceOf(currentContract) <= underlyingTotalSupply();",
+        "formal_property": "invariant whatAboutTotal(env e)\n    totalSupply(e) <= underlyingTotalSupply()\n    filtered { f -> f.selector != certorafallback_0().selector && !f.isView}\n",
         "nl_summary": "",
         "metadata": {
             "rule_name": "whatAboutTotal",
-            "rule_type": "INVARIANT"
+            "rule_type": "invariant",
+            "modifies_state": false,
+            "methods_in_block": [
+                "underlying",
+                "underlyingTotalSupply"
+            ],
+            "start_line": 16,
+            "end_line": 18,
+            "block_hash": "57706f22a95db593b0eb33c61736218d"
         }
     },
     {
-        "id": "ERC20Wrapper_underTotalAndContractBalanceOfCorrelation",
+        "id": "ERC20Wrapper_underTotalAndContractBalanceOfCorrelation_2cae76f0",
         "chunk_type": "CONTRACT_INVARIANT",
         "source_contract": "ERC20Wrapper.sol",
         "target_function": "ALL",
         "text_chunk": "// SPDX-License-Identifier: MIT\n// OpenZeppelin Contracts (last updated v4.6.0) (token/ERC20/extensions/ERC20Wrapper.sol)\n\npragma solidity ^0.8.0;\n\nimport \"../ERC20.sol\";\nimport \"../utils/SafeERC20.sol\";\n\nabstract contract ERC20Wrapper is ERC20 {\n    IERC20 public immutable underlying;\n\n    constructor(IERC20 underlyingToken) {\n        underlying = underlyingToken;\n    }\n    function decimals() public view virtual override returns (uint8) {\n        try IERC20Metadata(address(underlying)).decimals() returns (uint8 value) {\n            return value;\n        } catch {\n            return super.decimals();\n        }\n    }\n    function depositFor(address account, uint256 amount) public virtual returns (bool) {\n        SafeERC20.safeTransferFrom(underlying, _msgSender(), address(this), amount);\n        _mint(account, amount);\n        return true;\n    }\n    function withdrawTo(address account, uint256 amount) public virtual returns (bool) {\n        _burn(_msgSender(), amount);\n        SafeERC20.safeTransfer(underlying, account, amount);\n        return true;\n    }\n    function _recover(address account) internal virtual returns (uint256) {\n        uint256 value = underlying.balanceOf(address(this)) - totalSupply();\n        _mint(account, value);\n        return value;\n    }\n}\n",
-        "formal_property": "invariant underTotalAndContractBalanceOfCorrelation(env e)\n    totalSupply(e) <= underlyingBalanceOf(currentContract)\n    {\n        preserved with (env e2) {\n            require underlying() != currentContract;",
+        "formal_property": "invariant underTotalAndContractBalanceOfCorrelation(env e)\n    totalSupply(e) <= underlyingBalanceOf(currentContract)\n    {\n        preserved with (env e2) {\n            require underlying() != currentContract;\n            require e.msg.sender != currentContract;\n            require e.msg.sender == e2.msg.sender;\n        }\n    }\n",
         "nl_summary": "",
         "metadata": {
             "rule_name": "underTotalAndContractBalanceOfCorrelation",
-            "rule_type": "INVARIANT"
+            "rule_type": "invariant",
+            "modifies_state": false,
+            "methods_in_block": [
+                "underlying",
+                "underlyingBalanceOf"
+            ],
+            "start_line": 31,
+            "end_line": 39,
+            "block_hash": "2cae76f013d05a4744eee02597cafa2d"
+        }
+    },
+    {
+        "id": "ERC20Wrapper_depositForSpecBasic_a2aa00fb",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC20Wrapper.sol",
+        "target_function": "depositFor",
+        "text_chunk": "    function depositFor(address account, uint256 amount) public virtual returns (bool) {\n        SafeERC20.safeTransferFrom(underlying, _msgSender(), address(this), amount);\n        _mint(account, amount);\n        return true;\n    }\n",
+        "formal_property": "rule depositForSpecBasic(env e){\n    address account; uint256 amount;\n\n    require e.msg.sender != currentContract;\n    require underlying() != currentContract;\n    uint256 wrapperTotalBefore = totalSupply(e);\n    uint256 underlyingTotalBefore = underlyingTotalSupply();\n    uint256 underlyingThisBalanceBefore = underlyingBalanceOf(currentContract);\n    depositFor(e, account, amount);\n    uint256 wrapperTotalAfter = totalSupply(e);\n    uint256 underlyingTotalAfter = underlyingTotalSupply();\n    uint256 underlyingThisBalanceAfter = underlyingBalanceOf(currentContract);\n    assert wrapperTotalBefore == wrapperTotalAfter - amount, \"wrapper total wrong update\";\n    assert underlyingTotalBefore == underlyingTotalAfter, \"underlying total was updated\";\n    assert underlyingThisBalanceBefore == underlyingThisBalanceAfter - amount, \"underlying this balance wrong update\";\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "depositForSpecBasic",
+            "rule_type": "rule",
+            "modifies_state": true,
+            "methods_in_block": [
+                "underlying",
+                "underlyingTotalSupply",
+                "underlyingBalanceOf",
+                "depositFor"
+            ],
+            "start_line": 44,
+            "end_line": 63,
+            "block_hash": "a2aa00fb0d8b8f795ea512ea88a0953c"
+        }
+    },
+    {
+        "id": "ERC20Wrapper_depositForSpecWrapper_56e9deb2",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC20Wrapper.sol",
+        "target_function": "depositFor",
+        "text_chunk": "    function depositFor(address account, uint256 amount) public virtual returns (bool) {\n        SafeERC20.safeTransferFrom(underlying, _msgSender(), address(this), amount);\n        _mint(account, amount);\n        return true;\n    }\n",
+        "formal_property": "rule depositForSpecWrapper(env e){\n    address account; uint256 amount;\n\n    require underlying() != currentContract;\n    uint256 wrapperUserBalanceBefore = balanceOf(e, account);\n    uint256 wrapperSenderBalanceBefore = balanceOf(e, e.msg.sender);\n    depositFor(e, account, amount);\n    uint256 wrapperUserBalanceAfter = balanceOf(e, account);\n    uint256 wrapperSenderBalanceAfter = balanceOf(e, e.msg.sender);\n    assert account == e.msg.sender => wrapperUserBalanceBefore == wrapperSenderBalanceBefore \n                && wrapperUserBalanceAfter == wrapperSenderBalanceAfter \n                && wrapperUserBalanceBefore == wrapperUserBalanceAfter - amount, \"wrapper balances wrong update\";\n    assert account != e.msg.sender => wrapperUserBalanceBefore == wrapperUserBalanceAfter - amount\n                && wrapperSenderBalanceBefore == wrapperSenderBalanceAfter, \"wrapper balances wrong update\";\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "depositForSpecWrapper",
+            "rule_type": "rule",
+            "modifies_state": true,
+            "methods_in_block": [
+                "underlying",
+                "depositFor"
+            ],
+            "start_line": 68,
+            "end_line": 86,
+            "block_hash": "56e9deb2e263978fa0778175a0d244cd"
+        }
+    },
+    {
+        "id": "ERC20Wrapper_depositForSpecUnderlying_6b157381",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC20Wrapper.sol",
+        "target_function": "depositFor",
+        "text_chunk": "    function depositFor(address account, uint256 amount) public virtual returns (bool) {\n        SafeERC20.safeTransferFrom(underlying, _msgSender(), address(this), amount);\n        _mint(account, amount);\n        return true;\n    }\n",
+        "formal_property": "rule depositForSpecUnderlying(env e){\n    address account; uint256 amount;\n\n    require e.msg.sender != currentContract;\n    require underlying() != currentContract;\n    uint256 underlyingSenderBalanceBefore = underlyingBalanceOf(e.msg.sender);\n    uint256 underlyingUserBalanceBefore = underlyingBalanceOf(account);\n    depositFor(e, account, amount);\n    uint256 underlyingSenderBalanceAfter = underlyingBalanceOf(e.msg.sender);\n    uint256 underlyingUserBalanceAfter = underlyingBalanceOf(account);\n    assert account == e.msg.sender => underlyingSenderBalanceBefore == underlyingUserBalanceBefore\n                && underlyingSenderBalanceAfter == underlyingUserBalanceAfter\n                && underlyingSenderBalanceBefore == underlyingSenderBalanceAfter + amount, \"underlying balances wrong update\";\n    \n    assert account != e.msg.sender && account == currentContract => underlyingSenderBalanceBefore == underlyingSenderBalanceAfter + amount\n                && underlyingUserBalanceBefore == underlyingUserBalanceAfter - amount, \"underlying balances wrong update\";\n    assert account != e.msg.sender && account != currentContract => underlyingSenderBalanceBefore == underlyingSenderBalanceAfter + amount\n                && underlyingUserBalanceBefore == underlyingUserBalanceAfter, \"underlying balances wrong update\";\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "depositForSpecUnderlying",
+            "rule_type": "rule",
+            "modifies_state": true,
+            "methods_in_block": [
+                "underlying",
+                "underlyingBalanceOf",
+                "depositFor"
+            ],
+            "start_line": 91,
+            "end_line": 114,
+            "block_hash": "6b157381d2c89931ab22dfb13cfdcd3a"
+        }
+    },
+    {
+        "id": "ERC20Wrapper_withdrawToSpecBasic_204292cb",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC20Wrapper.sol",
+        "target_function": "withdrawTo",
+        "text_chunk": "    function withdrawTo(address account, uint256 amount) public virtual returns (bool) {\n        _burn(_msgSender(), amount);\n        SafeERC20.safeTransfer(underlying, account, amount);\n        return true;\n    }\n",
+        "formal_property": "rule withdrawToSpecBasic(env e){\n    address account; uint256 amount;\n\n    require underlying() != currentContract;\n    uint256 wrapperTotalBefore = totalSupply(e);\n    uint256 underlyingTotalBefore = underlyingTotalSupply();\n    withdrawTo(e, account, amount);\n    uint256 wrapperTotalAfter = totalSupply(e);\n    uint256 underlyingTotalAfter = underlyingTotalSupply();\n    assert wrapperTotalBefore == wrapperTotalAfter + amount, \"wrapper total wrong update\";\n    assert underlyingTotalBefore == underlyingTotalAfter, \"underlying total was updated\";\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "withdrawToSpecBasic",
+            "rule_type": "rule",
+            "modifies_state": true,
+            "methods_in_block": [
+                "underlying",
+                "underlyingTotalSupply",
+                "withdrawTo"
+            ],
+            "start_line": 119,
+            "end_line": 134,
+            "block_hash": "204292cb826c285c607506a2d1a793a8"
+        }
+    },
+    {
+        "id": "ERC20Wrapper_withdrawToSpecWrapper_ccdadb6b",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC20Wrapper.sol",
+        "target_function": "withdrawTo",
+        "text_chunk": "    function withdrawTo(address account, uint256 amount) public virtual returns (bool) {\n        _burn(_msgSender(), amount);\n        SafeERC20.safeTransfer(underlying, account, amount);\n        return true;\n    }\n",
+        "formal_property": "rule withdrawToSpecWrapper(env e){\n    address account; uint256 amount;\n\n    require underlying() != currentContract;\n    uint256 wrapperUserBalanceBefore = balanceOf(e, account);\n    uint256 wrapperSenderBalanceBefore = balanceOf(e, e.msg.sender);\n    withdrawTo(e, account, amount);\n    uint256 wrapperUserBalanceAfter = balanceOf(e, account);\n    uint256 wrapperSenderBalanceAfter = balanceOf(e, e.msg.sender);\n    \n    assert account == e.msg.sender => wrapperUserBalanceBefore == wrapperSenderBalanceBefore\n                && wrapperUserBalanceAfter == wrapperSenderBalanceAfter\n                && wrapperUserBalanceBefore == wrapperUserBalanceAfter + amount, \"wrapper user balance wrong update\";\n    assert account != e.msg.sender => wrapperSenderBalanceBefore == wrapperSenderBalanceAfter + amount\n                && wrapperUserBalanceBefore == wrapperUserBalanceAfter, \"wrapper user balance wrong update\";\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "withdrawToSpecWrapper",
+            "rule_type": "rule",
+            "modifies_state": true,
+            "methods_in_block": [
+                "underlying",
+                "withdrawTo"
+            ],
+            "start_line": 139,
+            "end_line": 157,
+            "block_hash": "ccdadb6b067b6ac0e0dc6fd51eefdc6f"
+        }
+    },
+    {
+        "id": "ERC20Wrapper_withdrawToSpecUnderlying_1bbf6d94",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC20Wrapper.sol",
+        "target_function": "withdrawTo",
+        "text_chunk": "    function withdrawTo(address account, uint256 amount) public virtual returns (bool) {\n        _burn(_msgSender(), amount);\n        SafeERC20.safeTransfer(underlying, account, amount);\n        return true;\n    }\n",
+        "formal_property": "rule withdrawToSpecUnderlying(env e){\n    address account; uint256 amount;\n\n    require e.msg.sender != currentContract;\n    require underlying() != currentContract;\n    uint256 underlyingSenderBalanceBefore = underlyingBalanceOf(e.msg.sender);\n    uint256 underlyingUserBalanceBefore = underlyingBalanceOf(account);\n    uint256 underlyingThisBalanceBefore = underlyingBalanceOf(currentContract);\n    withdrawTo(e, account, amount);\n    uint256 underlyingSenderBalanceAfter = underlyingBalanceOf(e.msg.sender);\n    uint256 underlyingUserBalanceAfter = underlyingBalanceOf(account);\n    uint256 underlyingThisBalanceAfter = underlyingBalanceOf(currentContract);\n    assert account == e.msg.sender => underlyingSenderBalanceBefore == underlyingUserBalanceBefore \n                && underlyingSenderBalanceAfter == underlyingUserBalanceAfter \n                && underlyingUserBalanceBefore == underlyingUserBalanceAfter - amount, \"underlying balances wrong update (acc == sender)\";\n    \n    assert account != e.msg.sender && account == currentContract => underlyingUserBalanceBefore == underlyingUserBalanceAfter\n                && underlyingSenderBalanceBefore == underlyingSenderBalanceAfter, \"underlying balances wrong update (acc == contract)\"; \n    assert account != e.msg.sender && account != currentContract => underlyingUserBalanceBefore == underlyingUserBalanceAfter - amount\n                && underlyingSenderBalanceBefore == underlyingSenderBalanceAfter\n                && underlyingThisBalanceBefore == underlyingThisBalanceAfter + amount, \"underlying balances wrong update (acc != contract)\";   \n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "withdrawToSpecUnderlying",
+            "rule_type": "rule",
+            "modifies_state": true,
+            "methods_in_block": [
+                "underlying",
+                "underlyingBalanceOf",
+                "withdrawTo"
+            ],
+            "start_line": 162,
+            "end_line": 187,
+            "block_hash": "1bbf6d94c48f3b7b43820a853a21ff6e"
+        }
+    },
+    {
+        "id": "ERC20Wrapper_recoverSpec_c0744a91",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC20Wrapper.sol",
+        "target_function": "_recover",
+        "text_chunk": "    function _recover(address account) internal virtual returns (uint256) {\n        uint256 value = underlying.balanceOf(address(this)) - totalSupply();\n        _mint(account, value);\n        return value;\n    }\n",
+        "formal_property": "rule recoverSpec(env e){\n    address account; uint256 amount;\n\n    uint256 wrapperTotalBefore = totalSupply(e);\n    uint256 wrapperUserBalanceBefore = balanceOf(e, account);\n    uint256 wrapperSenderBalanceBefore = balanceOf(e, e.msg.sender);\n    uint256 underlyingThisBalanceBefore = underlyingBalanceOf(currentContract);\n    mathint value = underlyingThisBalanceBefore - wrapperTotalBefore;\n    _recover(e, account);\n    uint256 wrapperTotalAfter = totalSupply(e);\n    uint256 wrapperUserBalanceAfter = balanceOf(e, account);\n    uint256 wrapperSenderBalanceAfter = balanceOf(e, e.msg.sender);\n    \n    assert wrapperTotalBefore == wrapperTotalAfter - value, \"wrapper total wrong update\";\n    assert e.msg.sender == account => wrapperUserBalanceBefore == wrapperSenderBalanceBefore\n                && wrapperUserBalanceAfter == wrapperSenderBalanceAfter\n                && wrapperUserBalanceBefore == wrapperUserBalanceAfter - value, \"wrapper balances wrong update\";\n    assert e.msg.sender != account => wrapperUserBalanceBefore == wrapperUserBalanceAfter - value\n                && wrapperSenderBalanceBefore == wrapperSenderBalanceAfter, \"wrapper balances wrong update\";\n}",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "recoverSpec",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "underlying",
+                "underlyingBalanceOf",
+                "_recover"
+            ],
+            "start_line": 192,
+            "end_line": 214,
+            "block_hash": "c0744a913905fa7d306ce8454468f071"
         }
     }
 ]

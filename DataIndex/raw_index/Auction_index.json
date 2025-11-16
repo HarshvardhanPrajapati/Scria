@@ -12,7 +12,44 @@
                 "bid",
                 "emitBidEvent"
             ],
+            "state_variables": [],
             "is_standard": "UNKNOWN"
+        }
+    },
+    {
+        "id": "Auction_checks_b003f372",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "Auction.sol",
+        "target_function": "bid",
+        "text_chunk": "    function bid() public\n    {\n        emitBidEvent(msg.sender);\n    }\n",
+        "formal_property": " * This rule checks that an event is emitted\n */\nrule eventIsEmitted() {\n    env e;\n    isEventEmitted = false;\n    bid(e);\n    assert isEventEmitted;\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "checks",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [],
+            "start_line": 20,
+            "end_line": 27,
+            "block_hash": "b003f372eb02993f40dc1a5c5777c102"
+        }
+    },
+    {
+        "id": "Auction_checks_dd7bf432",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "Auction.sol",
+        "target_function": "bid",
+        "text_chunk": "    function bid() public\n    {\n        emitBidEvent(msg.sender);\n    }\n",
+        "formal_property": " * This rule checks that the emitted event address is the one\n * that initiated the bid operation. \n */\nrule eventEmitsMsgSender() {\n    env e;\n    bid(e);\n    assert emittedEventAddress == e.msg.sender;\n}",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "checks",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [],
+            "start_line": 30,
+            "end_line": 37,
+            "block_hash": "dd7bf432f3c54fe7019810f908a7af02"
         }
     }
 ]

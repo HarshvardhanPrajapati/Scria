@@ -31,33 +31,879 @@
                 "_doSafeBatchTransferAcceptanceCheck",
                 "_asSingletonArray"
             ],
+            "state_variables": [
+                "_operatorApprovals",
+                "_uri",
+                "_balances"
+            ],
             "is_standard": "UNKNOWN"
         }
     },
     {
-        "id": "ERC1155_singleTokenSafeTransferFromSafeBatchTransferFromEquivalence",
+        "id": "ERC1155_unexpectedAllowanceChange_0bde3929",
         "chunk_type": "FUNCTION_RULE",
         "source_contract": "ERC1155.sol",
-        "target_function": "balanceof/safebatchtransferfrom/safetransferfrom",
-        "text_chunk": "// SPDX-License-Identifier: MIT\n// OpenZeppelin Contracts (last updated v4.6.0) (token/ERC1155/ERC1155.sol)\n\npragma solidity ^0.8.0;\n\nimport \"./IERC1155.sol\";\nimport \"./IERC1155Receiver.sol\";\nimport \"./extensions/IERC1155MetadataURI.sol\";\nimport \"../../utils/Address.sol\";\nimport \"../../utils/Context.sol\";\nimport \"../../utils/introspection/ERC165.sol\";\n\ncontract ERC1155 is Context, ERC165, IERC1155, IERC1155MetadataURI {\n    using Address for address;\n    mapping(uint256 => mapping(address => uint256)) private _balances;\n    mapping(address => mapping(address => bool)) private _operatorApprovals;\n    string private _uri;\n    constructor(string memory uri_) {\n        _setURI(uri_);\n    }\n    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC165, IERC165) returns (bool) {\n        return\n            interfaceId == type(IERC1155).interfaceId ||\n            interfaceId == type(IERC1155MetadataURI).interfaceId ||\n            super.supportsInterface(interfaceId);\n    }\n    function uri(uint256) public view virtual override returns (string memory) {\n        return _uri;\n    }\n    function balanceOf(address account, uint256 id) public view virtual override returns (uint256) {\n        require(account != address(0), \"ERC1155: address zero is not a valid owner\");\n        return _balances[id][account];\n    }\n    function balanceOfBatch(address[] memory accounts, uint256[] memory ids)\n        public\n        view\n        virtual\n        override\n        returns (uint256[] memory)\n    {\n        require(accounts.length == ids.length, \"ERC1155: accounts and ids length mismatch\");\n\n        uint256[] memory batchBalances = new uint256[](accounts.length);\n\n        for (uint256 i = 0; i < accounts.length; ++i) {\n            batchBalances[i] = balanceOf(accounts[i], ids[i]);\n        }\n\n        return batchBalances;\n    }\n    function setApprovalForAll(address operator, bool approved) public virtual override {\n        _setApprovalForAll(_msgSender(), operator, approved);\n    }\n    function isApprovedForAll(address account, address operator) public view virtual override returns (bool) {\n        return _operatorApprovals[account][operator];\n    }\n    function safeTransferFrom(\n        address from,\n        address to,\n        uint256 id,\n        uint256 amount,\n        bytes memory data\n    ) public virtual override {\n        require(\n            from == _msgSender() || isApprovedForAll(from, _msgSender()),\n            \"ERC1155: caller is not token owner nor approved\"\n        );\n        _safeTransferFrom(from, to, id, amount, data);\n    }\n    function safeBatchTransferFrom(\n        address from,\n        address to,\n        uint256[] memory ids,\n        uint256[] memory amounts,\n        bytes memory data\n    ) public virtual override {\n        require(\n            from == _msgSender() || isApprovedForAll(from, _msgSender()),\n            \"ERC1155: caller is not token owner nor approved\"\n        );\n        _safeBatchTransferFrom(from, to, ids, amounts, data);\n    }\n    function _safeTransferFrom(\n        address from,\n        address to,\n        uint256 id,\n        uint256 amount,\n        bytes memory data\n    ) internal virtual {\n        require(to != address(0), \"ERC1155: transfer to the zero address\");\n\n        address operator = _msgSender();\n        uint256[] memory ids = _asSingletonArray(id);\n        uint256[] memory amounts = _asSingletonArray(amount);\n\n        _beforeTokenTransfer(operator, from, to, ids, amounts, data);\n\n        uint256 fromBalance = _balances[id][from];\n        require(fromBalance >= amount, \"ERC1155: insufficient balance for transfer\");\n        unchecked {\n            _balances[id][from] = fromBalance - amount;\n        }\n        _balances[id][to] += amount;\n\n        emit TransferSingle(operator, from, to, id, amount);\n\n        _afterTokenTransfer(operator, from, to, ids, amounts, data);\n\n        _doSafeTransferAcceptanceCheck(operator, from, to, id, amount, data);\n    }\n    function _safeBatchTransferFrom(\n        address from,\n        address to,\n        uint256[] memory ids,\n        uint256[] memory amounts,\n        bytes memory data\n    ) internal virtual {\n        require(ids.length == amounts.length, \"ERC1155: ids and amounts length mismatch\");\n        require(to != address(0), \"ERC1155: transfer to the zero address\");\n\n        address operator = _msgSender();\n\n        _beforeTokenTransfer(operator, from, to, ids, amounts, data);\n\n        for (uint256 i = 0; i < ids.length; ++i) {\n            uint256 id = ids[i];\n            uint256 amount = amounts[i];\n\n            uint256 fromBalance = _balances[id][from];\n            require(fromBalance >= amount, \"ERC1155: insufficient balance for transfer\");\n            unchecked {\n                _balances[id][from] = fromBalance - amount;\n            }\n            _balances[id][to] += amount;\n        }\n\n        emit TransferBatch(operator, from, to, ids, amounts);\n\n        _afterTokenTransfer(operator, from, to, ids, amounts, data);\n\n        _doSafeBatchTransferAcceptanceCheck(operator, from, to, ids, amounts, data);\n    }\n    function _setURI(string memory newuri) internal virtual {\n        _uri = newuri;\n    }\n    function _mint(\n        address to,\n        uint256 id,\n        uint256 amount,\n        bytes memory data\n    ) internal virtual {\n        require(to != address(0), \"ERC1155: mint to the zero address\");\n\n        address operator = _msgSender();\n        uint256[] memory ids = _asSingletonArray(id);\n        uint256[] memory amounts = _asSingletonArray(amount);\n\n        _beforeTokenTransfer(operator, address(0), to, ids, amounts, data);\n\n        _balances[id][to] += amount;\n        emit TransferSingle(operator, address(0), to, id, amount);\n\n        _afterTokenTransfer(operator, address(0), to, ids, amounts, data);\n\n        _doSafeTransferAcceptanceCheck(operator, address(0), to, id, amount, data);\n    }\n    function _mintBatch(\n        address to,\n        uint256[] memory ids,\n        uint256[] memory amounts,\n        bytes memory data\n    ) internal virtual {\n        require(to != address(0), \"ERC1155: mint to the zero address\");\n        require(ids.length == amounts.length, \"ERC1155: ids and amounts length mismatch\");\n\n        address operator = _msgSender();\n\n        _beforeTokenTransfer(operator, address(0), to, ids, amounts, data);\n\n        for (uint256 i = 0; i < ids.length; i++) {\n            _balances[ids[i]][to] += amounts[i];\n        }\n\n        emit TransferBatch(operator, address(0), to, ids, amounts);\n\n        _afterTokenTransfer(operator, address(0), to, ids, amounts, data);\n\n        _doSafeBatchTransferAcceptanceCheck(operator, address(0), to, ids, amounts, data);\n    }\n    function _burn(\n        address from,\n        uint256 id,\n        uint256 amount\n    ) internal virtual {\n        require(from != address(0), \"ERC1155: burn from the zero address\");\n\n        address operator = _msgSender();\n        uint256[] memory ids = _asSingletonArray(id);\n        uint256[] memory amounts = _asSingletonArray(amount);\n\n        _beforeTokenTransfer(operator, from, address(0), ids, amounts, \"\");\n\n        uint256 fromBalance = _balances[id][from];\n        require(fromBalance >= amount, \"ERC1155: burn amount exceeds balance\");\n        unchecked {\n            _balances[id][from] = fromBalance - amount;\n        }\n\n        emit TransferSingle(operator, from, address(0), id, amount);\n\n        _afterTokenTransfer(operator, from, address(0), ids, amounts, \"\");\n    }\n    function _burnBatch(\n        address from,\n        uint256[] memory ids,\n        uint256[] memory amounts\n    ) internal virtual {\n        require(from != address(0), \"ERC1155: burn from the zero address\");\n        require(ids.length == amounts.length, \"ERC1155: ids and amounts length mismatch\");\n\n        address operator = _msgSender();\n\n        _beforeTokenTransfer(operator, from, address(0), ids, amounts, \"\");\n\n        for (uint256 i = 0; i < ids.length; i++) {\n            uint256 id = ids[i];\n            uint256 amount = amounts[i];\n\n            uint256 fromBalance = _balances[id][from];\n            require(fromBalance >= amount, \"ERC1155: burn amount exceeds balance\");\n            unchecked {\n                _balances[id][from] = fromBalance - amount;\n            }\n        }\n\n        emit TransferBatch(operator, from, address(0), ids, amounts);\n\n        _afterTokenTransfer(operator, from, address(0), ids, amounts, \"\");\n    }\n    function _setApprovalForAll(\n        address owner,\n        address operator,\n        bool approved\n    ) internal virtual {\n        require(owner != operator, \"ERC1155: setting approval status for self\");\n        _operatorApprovals[owner][operator] = approved;\n        emit ApprovalForAll(owner, operator, approved);\n    }\n    function _beforeTokenTransfer(\n        address operator,\n        address from,\n        address to,\n        uint256[] memory ids,\n        uint256[] memory amounts,\n        bytes memory data\n    ) internal virtual {}\n    function _afterTokenTransfer(\n        address operator,\n        address from,\n        address to,\n        uint256[] memory ids,\n        uint256[] memory amounts,\n        bytes memory data\n    ) internal virtual {}\n\n    function _doSafeTransferAcceptanceCheck(\n        address operator,\n        address from,\n        address to,\n        uint256 id,\n        uint256 amount,\n        bytes memory data\n    ) private {\n        if (to.isContract()) {\n            try IERC1155Receiver(to).onERC1155Received(operator, from, id, amount, data) returns (bytes4 response) {\n                if (response != IERC1155Receiver.onERC1155Received.selector) {\n                    revert(\"ERC1155: ERC1155Receiver rejected tokens\");\n                }\n            } catch Error(string memory reason) {\n                revert(reason);\n            } catch {\n                revert(\"ERC1155: transfer to non ERC1155Receiver implementer\");\n            }\n        }\n    }\n\n    function _doSafeBatchTransferAcceptanceCheck(\n        address operator,\n        address from,\n        address to,\n        uint256[] memory ids,\n        uint256[] memory amounts,\n        bytes memory data\n    ) private {\n        if (to.isContract()) {\n            try IERC1155Receiver(to).onERC1155BatchReceived(operator, from, ids, amounts, data) returns (\n                bytes4 response\n            ) {\n                if (response != IERC1155Receiver.onERC1155BatchReceived.selector) {\n                    revert(\"ERC1155: ERC1155Receiver rejected tokens\");\n                }\n            } catch Error(string memory reason) {\n                revert(reason);\n            } catch {\n                revert(\"ERC1155: transfer to non ERC1155Receiver implementer\");\n            }\n        }\n    }\n\n    function _asSingletonArray(uint256 element) private pure returns (uint256[] memory) {\n        uint256[] memory array = new uint256[](1);\n        array[0] = element;\n\n        return array;\n    }\n}\n",
-        "formal_property": "rule singleTokenSafeTransferFromSafeBatchTransferFromEquivalence {\n    storage beforeTransfer = lastStorage;\n    env e;\n\n    address holder; address recipient;\n    uint256 token; uint256 transferAmount; bytes data;\n    uint256[] tokens; uint256[] transferAmounts;\n\n    mathint holderStartingBalance = balanceOf(holder, token);\n    mathint recipientStartingBalance = balanceOf(recipient, token);\n\n    require tokens.length == 1; require transferAmounts.length == 1;\n    require tokens[0] == token; require transferAmounts[0] == transferAmount;\n\n    // transferring via safeTransferFrom\n    safeTransferFrom(e, holder, recipient, token, transferAmount, data) at beforeTransfer;\n    mathint holderSafeTransferFromBalanceChange = holderStartingBalance - balanceOf(holder, token);\n    mathint recipientSafeTransferFromBalanceChange = balanceOf(recipient, token) - recipientStartingBalance;\n\n    // transferring via safeBatchTransferFrom\n    safeBatchTransferFrom(e, holder, recipient, tokens, transferAmounts, data) at beforeTransfer;\n    mathint holderSafeBatchTransferFromBalanceChange = holderStartingBalance - balanceOf(holder, token);\n    mathint recipientSafeBatchTransferFromBalanceChange = balanceOf(recipient, token) - recipientStartingBalance;\n\n    assert holderSafeTransferFromBalanceChange == holderSafeBatchTransferFromBalanceChange\n        && recipientSafeTransferFromBalanceChange == recipientSafeBatchTransferFromBalanceChange, \n        \"Transferring a single token via safeTransferFrom or safeBatchTransferFrom must be equivalent\";\n}   \n\n/// The results of transferring multiple tokens must be equivalent whether done \n/// separately via safeTransferFrom or together via safeBatchTransferFrom.\nrule multipleTokenSafeTransferFromSafeBatchTransferFromEquivalence {\n    storage beforeTransfers = lastStorage;\n    env e;\n\n    address holder; address recipient; bytes data;\n    uint256 tokenA; uint256 tokenB; uint256 tokenC;\n    uint256 transferAmountA; uint256 transferAmountB; uint256 transferAmountC;\n    uint256[] tokens; uint256[] transferAmounts;\n\n    mathint holderStartingBalanceA = balanceOf(holder, tokenA);\n    mathint holderStartingBalanceB = balanceOf(holder, tokenB);\n    mathint holderStartingBalanceC = balanceOf(holder, tokenC);\n    mathint recipientStartingBalanceA = balanceOf(recipient, tokenA);\n    mathint recipientStartingBalanceB = balanceOf(recipient, tokenB);\n    mathint recipientStartingBalanceC = balanceOf(recipient, tokenC);\n\n    require tokens.length == 3; require transferAmounts.length == 3;\n    require tokens[0] == tokenA; require transferAmounts[0] == transferAmountA;\n    require tokens[1] == tokenB; require transferAmounts[1] == transferAmountB;\n    require tokens[2] == tokenC; require transferAmounts[2] == transferAmountC;\n\n    // transferring via safeTransferFrom\n    safeTransferFrom(e, holder, recipient, tokenA, transferAmountA, data) at beforeTransfers;\n    safeTransferFrom(e, holder, recipient, tokenB, transferAmountB, data);\n    safeTransferFrom(e, holder, recipient, tokenC, transferAmountC, data);\n    mathint holderSafeTransferFromBalanceChangeA = holderStartingBalanceA - balanceOf(holder, tokenA);\n    mathint holderSafeTransferFromBalanceChangeB = holderStartingBalanceB - balanceOf(holder, tokenB);\n    mathint holderSafeTransferFromBalanceChangeC = holderStartingBalanceC - balanceOf(holder, tokenC);\n    mathint recipientSafeTransferFromBalanceChangeA = balanceOf(recipient, tokenA) - recipientStartingBalanceA;\n    mathint recipientSafeTransferFromBalanceChangeB = balanceOf(recipient, tokenB) - recipientStartingBalanceB;\n    mathint recipientSafeTransferFromBalanceChangeC = balanceOf(recipient, tokenC) - recipientStartingBalanceC;\n\n    // transferring via safeBatchTransferFrom\n    safeBatchTransferFrom(e, holder, recipient, tokens, transferAmounts, data) at beforeTransfers;\n    mathint holderSafeBatchTransferFromBalanceChangeA = holderStartingBalanceA - balanceOf(holder, tokenA);\n    mathint holderSafeBatchTransferFromBalanceChangeB = holderStartingBalanceB - balanceOf(holder, tokenB);\n    mathint holderSafeBatchTransferFromBalanceChangeC = holderStartingBalanceC - balanceOf(holder, tokenC);\n    mathint recipientSafeBatchTransferFromBalanceChangeA = balanceOf(recipient, tokenA) - recipientStartingBalanceA;\n    mathint recipientSafeBatchTransferFromBalanceChangeB = balanceOf(recipient, tokenB) - recipientStartingBalanceB;\n    mathint recipientSafeBatchTransferFromBalanceChangeC = balanceOf(recipient, tokenC) - recipientStartingBalanceC;\n\n    assert holderSafeTransferFromBalanceChangeA == holderSafeBatchTransferFromBalanceChangeA\n        && holderSafeTransferFromBalanceChangeB == holderSafeBatchTransferFromBalanceChangeB\n        && holderSafeTransferFromBalanceChangeC == holderSafeBatchTransferFromBalanceChangeC\n        && recipientSafeTransferFromBalanceChangeA == recipientSafeBatchTransferFromBalanceChangeA\n        && recipientSafeTransferFromBalanceChangeB == recipientSafeBatchTransferFromBalanceChangeB\n        && recipientSafeTransferFromBalanceChangeC == recipientSafeBatchTransferFromBalanceChangeC, \n        \"Transferring multiple tokens via safeTransferFrom or safeBatchTransferFrom must be equivalent\";\n}",
+        "target_function": "setApprovalForAll",
+        "text_chunk": "    function setApprovalForAll(address operator, bool approved) public virtual override {\n        _setApprovalForAll(_msgSender(), operator, approved);\n    }\n",
+        "formal_property": "rule unexpectedAllowanceChange(method f, env e) filtered { f -> f.selector != setApprovalForAll(address, bool).selector } {\n",
         "nl_summary": "",
         "metadata": {
-            "rule_name": "singleTokenSafeTransferFromSafeBatchTransferFromEquivalence",
-            "rule_type": "RULE"
+            "rule_name": "unexpectedAllowanceChange",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "setApprovalForAll"
+            ],
+            "start_line": 26,
+            "end_line": 26,
+            "block_hash": "0bde392927f548e556424b5c450ebaa0"
         }
     },
     {
-        "id": "ERC1155_transfersHaveSameLengthInputArrays",
+        "id": "ERC1155_onlyOwnerCanApprove_cd2edc65",
         "chunk_type": "FUNCTION_RULE",
         "source_contract": "ERC1155.sol",
-        "target_function": "safebatchtransferfrom",
+        "target_function": "isApprovedForAll/setApprovalForAll",
+        "text_chunk": "    function isApprovedForAll(address account, address operator) public view virtual override returns (bool) {\n        return _operatorApprovals[account][operator];\n    }\n\n\n    function setApprovalForAll(address operator, bool approved) public virtual override {\n        _setApprovalForAll(_msgSender(), operator, approved);\n    }\n",
+        "formal_property": "rule onlyOwnerCanApprove(env e){\n    address owner; address operator; bool approved;\n\n    bool aprovalBefore = isApprovedForAll(owner, operator);\n    setApprovalForAll(e, operator, approved);\n    bool aprovalAfter = isApprovedForAll(owner, operator);\n    assert aprovalBefore != aprovalAfter => owner == e.msg.sender, \"There should be only one owner\";\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "onlyOwnerCanApprove",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "isApprovedForAll",
+                "setApprovalForAll"
+            ],
+            "start_line": 41,
+            "end_line": 51,
+            "block_hash": "cd2edc6596cb537d52fbdf5a9454ed16"
+        }
+    },
+    {
+        "id": "ERC1155_approvalRevertCases_d19dcd11",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC1155.sol",
+        "target_function": "isApprovedForAll",
+        "text_chunk": "    function isApprovedForAll(address account, address operator) public view virtual override returns (bool) {\n        return _operatorApprovals[account][operator];\n    }\n",
+        "formal_property": "rule approvalRevertCases(env e){\n    address account; address operator;\n    isApprovedForAll@withrevert(account, operator);\n    assert !lastReverted, \"Houston, we have a problem\";\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "approvalRevertCases",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "isApprovedForAll"
+            ],
+            "start_line": 56,
+            "end_line": 60,
+            "block_hash": "d19dcd11755086dd48aad45a065a0425"
+        }
+    },
+    {
+        "id": "ERC1155_onlyOneAllowanceChange_7f750b76",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC1155.sol",
+        "target_function": "isApprovedForAll/setApprovalForAll",
+        "text_chunk": "    function isApprovedForAll(address account, address operator) public view virtual override returns (bool) {\n        return _operatorApprovals[account][operator];\n    }\n\n\n    function setApprovalForAll(address operator, bool approved) public virtual override {\n        _setApprovalForAll(_msgSender(), operator, approved);\n    }\n",
+        "formal_property": "rule onlyOneAllowanceChange(method f, env e) {\n    address owner; address operator; address user; \n    bool approved;\n\n    bool userApproveBefore = isApprovedForAll(owner, user);\n    setApprovalForAll(e, operator, approved);\n    bool userApproveAfter = isApprovedForAll(owner, user);\n    assert userApproveBefore != userApproveAfter => (e.msg.sender == owner && operator == user), \"Imposter!\";\n}   \n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "onlyOneAllowanceChange",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "isApprovedForAll",
+                "setApprovalForAll"
+            ],
+            "start_line": 65,
+            "end_line": 76,
+            "block_hash": "7f750b767d7b07fa83c428866b870bdb"
+        }
+    },
+    {
+        "id": "ERC1155_unexpectedBalanceChange_741b14db",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC1155.sol",
+        "target_function": "safeBatchTransferFrom/safeTransferFrom",
+        "text_chunk": "    function safeBatchTransferFrom(\n        address from,\n        address to,\n        uint256[] memory ids,\n        uint256[] memory amounts,\n        bytes memory data\n    ) public virtual override {\n        require(\n            from == _msgSender() || isApprovedForAll(from, _msgSender()),\n            \"ERC1155: caller is not token owner nor approved\"\n        );\n        _safeBatchTransferFrom(from, to, ids, amounts, data);\n    }\n\n\n    function safeTransferFrom(\n        address from,\n        address to,\n        uint256 id,\n        uint256 amount,\n        bytes memory data\n    ) public virtual override {\n        require(\n            from == _msgSender() || isApprovedForAll(from, _msgSender()),\n            \"ERC1155: caller is not token owner nor approved\"\n        );\n        _safeTransferFrom(from, to, id, amount, data);\n    }\n",
+        "formal_property": "rule unexpectedBalanceChange(method f, env e) \n    filtered { f -> f.selector != safeTransferFrom(address, address, uint256, uint256, bytes).selector\n                        && f.selector != safeBatchTransferFrom(address, address, uint256[], uint256[], bytes).selector \n                        && f.selector != mint(address, uint256, uint256, bytes).selector \n                        && f.selector != mintBatch(address, uint256[], uint256[], bytes).selector  \n                        && f.selector != burn(address, uint256, uint256).selector \n                        && f.selector != burnBatch(address, uint256[], uint256[]).selector } {\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "unexpectedBalanceChange",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "safeTransferFrom",
+                "safeBatchTransferFrom",
+                "mint",
+                "mintBatch",
+                "burn",
+                "burnBatch"
+            ],
+            "start_line": 87,
+            "end_line": 93,
+            "block_hash": "741b14dbdaabfd39ee16de9edd70e901"
+        }
+    },
+    {
+        "id": "ERC1155_balanceOfRevertCases_42a54e28",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC1155.sol",
+        "target_function": "balanceOf",
+        "text_chunk": "    function balanceOf(address account, uint256 id) public view virtual override returns (uint256) {\n        require(account != address(0), \"ERC1155: address zero is not a valid owner\");\n        return _balances[id][account];\n    }\n",
+        "formal_property": "rule balanceOfRevertCases(env e){\n    address account; uint256 id;\n    balanceOf@withrevert(account, id);\n    assert lastReverted => account == 0, \"Houston, we have a problem\";\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "balanceOfRevertCases",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "balanceOf"
+            ],
+            "start_line": 108,
+            "end_line": 112,
+            "block_hash": "42a54e28d560c154a1101593584f73f2"
+        }
+    },
+    {
+        "id": "ERC1155_balanceOfBatchRevertCases_d18f7fa7",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC1155.sol",
+        "target_function": "balanceOf/balanceOfBatch",
+        "text_chunk": "    function balanceOf(address account, uint256 id) public view virtual override returns (uint256) {\n        require(account != address(0), \"ERC1155: address zero is not a valid owner\");\n        return _balances[id][account];\n    }\n\n\n    function balanceOfBatch(address[] memory accounts, uint256[] memory ids)\n        public\n        view\n        virtual\n        override\n        returns (uint256[] memory)\n    {\n        require(accounts.length == ids.length, \"ERC1155: accounts and ids length mismatch\");\n\n        uint256[] memory batchBalances = new uint256[](accounts.length);\n\n        for (uint256 i = 0; i < accounts.length; ++i) {\n            batchBalances[i] = balanceOf(accounts[i], ids[i]);\n        }\n\n        return batchBalances;\n    }\n",
+        "formal_property": "rule balanceOfBatchRevertCases(env e){\n    address[] accounts; uint256[] ids;\n    address account1; address account2; address account3;\n    uint256 id1; uint256 id2; uint256 id3;\n\n    require accounts.length == 3; \n    require ids.length == 3; \n    require accounts[0] == account1; require accounts[1] == account2; require accounts[2] == account3;\n    balanceOfBatch@withrevert(accounts, ids);\n    assert lastReverted => (account1 == 0 || account2 == 0 || account3 == 0), \"Houston, we have a problem\";\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "balanceOfBatchRevertCases",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "balanceOf",
+                "balanceOfBatch"
+            ],
+            "start_line": 117,
+            "end_line": 129,
+            "block_hash": "d18f7fa772de8cc58294196bd29bb3eb"
+        }
+    },
+    {
+        "id": "ERC1155_transferAdditivity_94fed8d7",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC1155.sol",
+        "target_function": "balanceOf/safeTransferFrom",
+        "text_chunk": "    function balanceOf(address account, uint256 id) public view virtual override returns (uint256) {\n        require(account != address(0), \"ERC1155: address zero is not a valid owner\");\n        return _balances[id][account];\n    }\n\n\n    function safeTransferFrom(\n        address from,\n        address to,\n        uint256 id,\n        uint256 amount,\n        bytes memory data\n    ) public virtual override {\n        require(\n            from == _msgSender() || isApprovedForAll(from, _msgSender()),\n            \"ERC1155: caller is not token owner nor approved\"\n        );\n        _safeTransferFrom(from, to, id, amount, data);\n    }\n",
+        "formal_property": "rule transferAdditivity(env e){\n    address from; address to; uint256 id; bytes data;\n    uint256 amount; uint256 amount1; uint256 amount2;\n    require amount == amount1 + amount2;\n\n    storage initialStorage = lastStorage;\n    safeTransferFrom(e, from, to, id, amount, data);\n    uint256 balanceAfterSingleTransaction = balanceOf(to, id);\n    safeTransferFrom(e, from, to, id, amount1, data) at initialStorage;\n    safeTransferFrom(e, from, to, id, amount2, data);\n    uint256 balanceAfterDoubleTransaction = balanceOf(to, id);\n    assert balanceAfterSingleTransaction == balanceAfterDoubleTransaction, \"Not additive\";\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "transferAdditivity",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "balanceOf",
+                "safeTransferFrom"
+            ],
+            "start_line": 140,
+            "end_line": 157,
+            "block_hash": "94fed8d7111aaec384f2678b7655c257"
+        }
+    },
+    {
+        "id": "ERC1155_transferCorrectness_9984312b",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC1155.sol",
+        "target_function": "balanceOf/safeTransferFrom",
+        "text_chunk": "    function balanceOf(address account, uint256 id) public view virtual override returns (uint256) {\n        require(account != address(0), \"ERC1155: address zero is not a valid owner\");\n        return _balances[id][account];\n    }\n\n\n    function safeTransferFrom(\n        address from,\n        address to,\n        uint256 id,\n        uint256 amount,\n        bytes memory data\n    ) public virtual override {\n        require(\n            from == _msgSender() || isApprovedForAll(from, _msgSender()),\n            \"ERC1155: caller is not token owner nor approved\"\n        );\n        _safeTransferFrom(from, to, id, amount, data);\n    }\n",
+        "formal_property": "rule transferCorrectness(env e){\n    address from; address to; uint256 id; uint256 amount; bytes data;\n\n    require to != from;\n    uint256 fromBalanceBefore = balanceOf(from, id);\n    uint256 toBalanceBefore = balanceOf(to, id);\n    safeTransferFrom(e, from, to, id, amount, data);\n    uint256 fromBalanceAfter = balanceOf(from, id);\n    uint256 toBalanceAfter = balanceOf(to, id);\n    assert fromBalanceBefore == fromBalanceAfter + amount, \"Something wet wrong\";\n    assert toBalanceBefore == toBalanceAfter - amount, \"Something wet wrong\";\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "transferCorrectness",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "balanceOf",
+                "safeTransferFrom"
+            ],
+            "start_line": 162,
+            "end_line": 177,
+            "block_hash": "9984312bbb89f86a32bca74e40cbdbc7"
+        }
+    },
+    {
+        "id": "ERC1155_transferBatchCorrectness_01140aa4",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC1155.sol",
+        "target_function": "balanceOf/safeBatchTransferFrom",
+        "text_chunk": "    function balanceOf(address account, uint256 id) public view virtual override returns (uint256) {\n        require(account != address(0), \"ERC1155: address zero is not a valid owner\");\n        return _balances[id][account];\n    }\n\n\n    function safeBatchTransferFrom(\n        address from,\n        address to,\n        uint256[] memory ids,\n        uint256[] memory amounts,\n        bytes memory data\n    ) public virtual override {\n        require(\n            from == _msgSender() || isApprovedForAll(from, _msgSender()),\n            \"ERC1155: caller is not token owner nor approved\"\n        );\n        _safeBatchTransferFrom(from, to, ids, amounts, data);\n    }\n",
+        "formal_property": "rule transferBatchCorrectness(env e){\n    address from; address to; uint256[] ids; uint256[] amounts; bytes data;\n    uint256 idToCheck1; uint256 amountToCheck1;\n    uint256 idToCheck2; uint256 amountToCheck2;\n    uint256 idToCheck3; uint256 amountToCheck3;\n\n    require to != from;\n    require idToCheck1 != idToCheck2 && idToCheck3 != idToCheck2 && idToCheck1 != idToCheck3;\n    \n    require ids.length == 3;        \n    require amounts.length == 3;    \n    require ids[0] == idToCheck1; require amounts[0] == amountToCheck1;\n    require ids[1] == idToCheck2; require amounts[1] == amountToCheck2;\n    require ids[2] == idToCheck3; require amounts[2] == amountToCheck3;\n    uint256 fromBalanceBefore1 = balanceOf(from, idToCheck1);\n    uint256 fromBalanceBefore2 = balanceOf(from, idToCheck2);\n    uint256 fromBalanceBefore3 = balanceOf(from, idToCheck3);\n    uint256 toBalanceBefore1 = balanceOf(to, idToCheck1);\n    uint256 toBalanceBefore2 = balanceOf(to, idToCheck2);\n    uint256 toBalanceBefore3 = balanceOf(to, idToCheck3);\n    safeBatchTransferFrom(e, from, to, ids, amounts, data);\n    uint256 fromBalanceAfter1 = balanceOf(from, idToCheck1);\n    uint256 fromBalanceAfter2 = balanceOf(from, idToCheck2);\n    uint256 fromBalanceAfter3 = balanceOf(from, idToCheck3);\n    uint256 toBalanceAfter1 = balanceOf(to, idToCheck1);\n    uint256 toBalanceAfter2 = balanceOf(to, idToCheck2);\n    uint256 toBalanceAfter3 = balanceOf(to, idToCheck3);\n    assert (fromBalanceBefore1 == fromBalanceAfter1 + amountToCheck1)\n                && (fromBalanceBefore2 == fromBalanceAfter2 + amountToCheck2)\n                && (fromBalanceBefore3 == fromBalanceAfter3 + amountToCheck3), \"Something wet wrong\";\n    assert (toBalanceBefore1 == toBalanceAfter1 - amountToCheck1)\n                && (toBalanceBefore2 == toBalanceAfter2 - amountToCheck2)\n                && (toBalanceBefore3 == toBalanceAfter3 - amountToCheck3), \"Something wet wrong\";\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "transferBatchCorrectness",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "balanceOf",
+                "safeBatchTransferFrom"
+            ],
+            "start_line": 182,
+            "end_line": 221,
+            "block_hash": "01140aa4097002d34e8f51891d709638"
+        }
+    },
+    {
+        "id": "ERC1155_cannotTransferMoreSingle_c0114da5",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC1155.sol",
+        "target_function": "balanceOf/safeTransferFrom",
+        "text_chunk": "    function balanceOf(address account, uint256 id) public view virtual override returns (uint256) {\n        require(account != address(0), \"ERC1155: address zero is not a valid owner\");\n        return _balances[id][account];\n    }\n\n\n    function safeTransferFrom(\n        address from,\n        address to,\n        uint256 id,\n        uint256 amount,\n        bytes memory data\n    ) public virtual override {\n        require(\n            from == _msgSender() || isApprovedForAll(from, _msgSender()),\n            \"ERC1155: caller is not token owner nor approved\"\n        );\n        _safeTransferFrom(from, to, id, amount, data);\n    }\n",
+        "formal_property": "rule cannotTransferMoreSingle(env e){\n    address from; address to; uint256 id; uint256 amount; bytes data;\n    uint256 balanceBefore = balanceOf(from, id);\n\n    safeTransferFrom@withrevert(e, from, to, id, amount, data);\n    assert amount > balanceBefore => lastReverted, \"Achtung! Scammer!\";\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "cannotTransferMoreSingle",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "balanceOf",
+                "safeTransferFrom"
+            ],
+            "start_line": 226,
+            "end_line": 233,
+            "block_hash": "c0114da547d03acc2ad1a97c537c0990"
+        }
+    },
+    {
+        "id": "ERC1155_cannotTransferMoreBatch_a55f7320",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC1155.sol",
+        "target_function": "balanceOf/safeBatchTransferFrom",
+        "text_chunk": "    function balanceOf(address account, uint256 id) public view virtual override returns (uint256) {\n        require(account != address(0), \"ERC1155: address zero is not a valid owner\");\n        return _balances[id][account];\n    }\n\n\n    function safeBatchTransferFrom(\n        address from,\n        address to,\n        uint256[] memory ids,\n        uint256[] memory amounts,\n        bytes memory data\n    ) public virtual override {\n        require(\n            from == _msgSender() || isApprovedForAll(from, _msgSender()),\n            \"ERC1155: caller is not token owner nor approved\"\n        );\n        _safeBatchTransferFrom(from, to, ids, amounts, data);\n    }\n",
+        "formal_property": "rule cannotTransferMoreBatch(env e){\n    address from; address to; uint256[] ids; uint256[] amounts; bytes data;\n    uint256 idToCheck1; uint256 amountToCheck1;\n    uint256 idToCheck2; uint256 amountToCheck2;\n    uint256 idToCheck3; uint256 amountToCheck3;\n\n    uint256 balanceBefore1 = balanceOf(from, idToCheck1);\n    uint256 balanceBefore2 = balanceOf(from, idToCheck2);\n    uint256 balanceBefore3 = balanceOf(from, idToCheck3);\n    require ids.length == 3;        \n    require amounts.length == 3;    \n    require ids[0] == idToCheck1; require amounts[0] == amountToCheck1;\n    require ids[1] == idToCheck2; require amounts[1] == amountToCheck2;\n    require ids[2] == idToCheck3; require amounts[2] == amountToCheck3;\n    safeBatchTransferFrom@withrevert(e, from, to, ids, amounts, data);\n    assert (amountToCheck1 > balanceBefore1 || amountToCheck2 > balanceBefore2 || amountToCheck3 > balanceBefore3) => lastReverted, \"Achtung! Scammer!\";\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "cannotTransferMoreBatch",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "balanceOf",
+                "safeBatchTransferFrom"
+            ],
+            "start_line": 238,
+            "end_line": 257,
+            "block_hash": "a55f732085c522308406d274641b8c72"
+        }
+    },
+    {
+        "id": "ERC1155_transferBalanceReduceEffect_be79be39",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC1155.sol",
+        "target_function": "balanceOf/safeTransferFrom",
+        "text_chunk": "    function balanceOf(address account, uint256 id) public view virtual override returns (uint256) {\n        require(account != address(0), \"ERC1155: address zero is not a valid owner\");\n        return _balances[id][account];\n    }\n\n\n    function safeTransferFrom(\n        address from,\n        address to,\n        uint256 id,\n        uint256 amount,\n        bytes memory data\n    ) public virtual override {\n        require(\n            from == _msgSender() || isApprovedForAll(from, _msgSender()),\n            \"ERC1155: caller is not token owner nor approved\"\n        );\n        _safeTransferFrom(from, to, id, amount, data);\n    }\n",
+        "formal_property": "rule transferBalanceReduceEffect(env e){\n    address from; address to; address other;\n    uint256 id; uint256 amount; \n    bytes data;\n\n    require other != to;\n    uint256 otherBalanceBefore = balanceOf(other, id);\n    safeTransferFrom(e, from, to, id, amount, data);\n    uint256 otherBalanceAfter = balanceOf(other, id);\n    assert from != other => otherBalanceBefore == otherBalanceAfter, \"Don't touch my money!\";\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "transferBalanceReduceEffect",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "balanceOf",
+                "safeTransferFrom"
+            ],
+            "start_line": 262,
+            "end_line": 276,
+            "block_hash": "be79be396b04c8467e4102f8b1034783"
+        }
+    },
+    {
+        "id": "ERC1155_transferBalanceIncreaseEffect_3711fe62",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC1155.sol",
+        "target_function": "balanceOf/safeTransferFrom",
+        "text_chunk": "    function balanceOf(address account, uint256 id) public view virtual override returns (uint256) {\n        require(account != address(0), \"ERC1155: address zero is not a valid owner\");\n        return _balances[id][account];\n    }\n\n\n    function safeTransferFrom(\n        address from,\n        address to,\n        uint256 id,\n        uint256 amount,\n        bytes memory data\n    ) public virtual override {\n        require(\n            from == _msgSender() || isApprovedForAll(from, _msgSender()),\n            \"ERC1155: caller is not token owner nor approved\"\n        );\n        _safeTransferFrom(from, to, id, amount, data);\n    }\n",
+        "formal_property": "rule transferBalanceIncreaseEffect(env e){\n    address from; address to; address other;\n    uint256 id; uint256 amount; \n    bytes data;\n\n    require from != other;\n    uint256 otherBalanceBefore = balanceOf(other, id);\n    safeTransferFrom(e, from, to, id, amount, data);\n    uint256 otherBalanceAfter = balanceOf(other, id);\n    assert other != to => otherBalanceBefore == otherBalanceAfter, \"Don't touch my money!\";\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "transferBalanceIncreaseEffect",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "balanceOf",
+                "safeTransferFrom"
+            ],
+            "start_line": 281,
+            "end_line": 295,
+            "block_hash": "3711fe62a129bad91e9371aee64bf37c"
+        }
+    },
+    {
+        "id": "ERC1155_transferBatchBalanceFromEffect_12bbc927",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC1155.sol",
+        "target_function": "balanceOf/safeBatchTransferFrom",
+        "text_chunk": "    function balanceOf(address account, uint256 id) public view virtual override returns (uint256) {\n        require(account != address(0), \"ERC1155: address zero is not a valid owner\");\n        return _balances[id][account];\n    }\n\n\n    function safeBatchTransferFrom(\n        address from,\n        address to,\n        uint256[] memory ids,\n        uint256[] memory amounts,\n        bytes memory data\n    ) public virtual override {\n        require(\n            from == _msgSender() || isApprovedForAll(from, _msgSender()),\n            \"ERC1155: caller is not token owner nor approved\"\n        );\n        _safeBatchTransferFrom(from, to, ids, amounts, data);\n    }\n",
+        "formal_property": "rule transferBatchBalanceFromEffect(env e){\n    address from; address to; address other;\n    uint256[] ids; uint256[] amounts;\n    uint256 id1; uint256 amount1; uint256 id2; uint256 amount2; uint256 id3; uint256 amount3;\n    bytes data;\n\n    require other != to;\n    uint256 otherBalanceBefore1 = balanceOf(other, id1);\n    uint256 otherBalanceBefore2 = balanceOf(other, id2);\n    uint256 otherBalanceBefore3 = balanceOf(other, id3);\n    safeBatchTransferFrom(e, from, to, ids, amounts, data);\n    uint256 otherBalanceAfter1 = balanceOf(other, id1);\n    uint256 otherBalanceAfter2 = balanceOf(other, id2);\n    uint256 otherBalanceAfter3 = balanceOf(other, id3);\n    assert from != other => (otherBalanceBefore1 == otherBalanceAfter1 \n                                && otherBalanceBefore2 == otherBalanceAfter2 \n                                && otherBalanceBefore3 == otherBalanceAfter3), \"Don't touch my money!\";\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "transferBatchBalanceFromEffect",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "balanceOf",
+                "safeBatchTransferFrom"
+            ],
+            "start_line": 300,
+            "end_line": 321,
+            "block_hash": "12bbc927fbb97dba153104df007028c4"
+        }
+    },
+    {
+        "id": "ERC1155_transferBatchBalanceToEffect_2f74183b",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC1155.sol",
+        "target_function": "balanceOf/safeBatchTransferFrom",
+        "text_chunk": "    function balanceOf(address account, uint256 id) public view virtual override returns (uint256) {\n        require(account != address(0), \"ERC1155: address zero is not a valid owner\");\n        return _balances[id][account];\n    }\n\n\n    function safeBatchTransferFrom(\n        address from,\n        address to,\n        uint256[] memory ids,\n        uint256[] memory amounts,\n        bytes memory data\n    ) public virtual override {\n        require(\n            from == _msgSender() || isApprovedForAll(from, _msgSender()),\n            \"ERC1155: caller is not token owner nor approved\"\n        );\n        _safeBatchTransferFrom(from, to, ids, amounts, data);\n    }\n",
+        "formal_property": "rule transferBatchBalanceToEffect(env e){\n    address from; address to; address other;\n    uint256[] ids; uint256[] amounts;\n    uint256 id1; uint256 amount1; uint256 id2; uint256 amount2; uint256 id3; uint256 amount3;\n    bytes data;\n\n    require other != from;\n    uint256 otherBalanceBefore1 = balanceOf(other, id1);\n    uint256 otherBalanceBefore2 = balanceOf(other, id2);\n    uint256 otherBalanceBefore3 = balanceOf(other, id3);\n    safeBatchTransferFrom(e, from, to, ids, amounts, data);\n    uint256 otherBalanceAfter1 = balanceOf(other, id1);\n    uint256 otherBalanceAfter2 = balanceOf(other, id2);\n    uint256 otherBalanceAfter3 = balanceOf(other, id3);\n    assert other != to => (otherBalanceBefore1 == otherBalanceAfter1 \n                                && otherBalanceBefore2 == otherBalanceAfter2 \n                                && otherBalanceBefore3 == otherBalanceAfter3), \"Don't touch my money!\";\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "transferBatchBalanceToEffect",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "balanceOf",
+                "safeBatchTransferFrom"
+            ],
+            "start_line": 326,
+            "end_line": 347,
+            "block_hash": "2f74183bf7fd564228b1c285da222e56"
+        }
+    },
+    {
+        "id": "ERC1155_noTransferForNotApproved_aaeccdd3",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC1155.sol",
+        "target_function": "isApprovedForAll/safeTransferFrom",
+        "text_chunk": "    function isApprovedForAll(address account, address operator) public view virtual override returns (bool) {\n        return _operatorApprovals[account][operator];\n    }\n\n\n    function safeTransferFrom(\n        address from,\n        address to,\n        uint256 id,\n        uint256 amount,\n        bytes memory data\n    ) public virtual override {\n        require(\n            from == _msgSender() || isApprovedForAll(from, _msgSender()),\n            \"ERC1155: caller is not token owner nor approved\"\n        );\n        _safeTransferFrom(from, to, id, amount, data);\n    }\n",
+        "formal_property": "rule noTransferForNotApproved(env e) {\n    address from; address operator;\n    address to; uint256 id; uint256 amount; bytes data;\n\n    require from != e.msg.sender;\n    bool approve = isApprovedForAll(from, e.msg.sender);\n    safeTransferFrom@withrevert(e, from, to, id, amount, data);\n    assert !approve => lastReverted, \"You don't have king's approval!\";\n}   \n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "noTransferForNotApproved",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "isApprovedForAll",
+                "safeTransferFrom"
+            ],
+            "start_line": 352,
+            "end_line": 363,
+            "block_hash": "aaeccdd3ceba1b3af6b4efaea4891bf9"
+        }
+    },
+    {
+        "id": "ERC1155_noTransferBatchForNotApproved_daa1af76",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC1155.sol",
+        "target_function": "isApprovedForAll/safeBatchTransferFrom",
+        "text_chunk": "    function isApprovedForAll(address account, address operator) public view virtual override returns (bool) {\n        return _operatorApprovals[account][operator];\n    }\n\n\n    function safeBatchTransferFrom(\n        address from,\n        address to,\n        uint256[] memory ids,\n        uint256[] memory amounts,\n        bytes memory data\n    ) public virtual override {\n        require(\n            from == _msgSender() || isApprovedForAll(from, _msgSender()),\n            \"ERC1155: caller is not token owner nor approved\"\n        );\n        _safeBatchTransferFrom(from, to, ids, amounts, data);\n    }\n",
+        "formal_property": "rule noTransferBatchForNotApproved(env e) {\n    address from; address operator; address to; \n    bytes data;\n    uint256[] ids; uint256[] amounts;\n\n    require from != e.msg.sender;\n    bool approve = isApprovedForAll(from, e.msg.sender);\n    safeBatchTransferFrom@withrevert(e, from, to, ids, amounts, data);\n    assert !approve => lastReverted, \"You don't have king's approval!\";\n}   \n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "noTransferBatchForNotApproved",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "isApprovedForAll",
+                "safeBatchTransferFrom"
+            ],
+            "start_line": 368,
+            "end_line": 380,
+            "block_hash": "daa1af76aac475c4430080dddab49849"
+        }
+    },
+    {
+        "id": "ERC1155_noTransferEffectOnApproval_16c413a8",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC1155.sol",
+        "target_function": "isApprovedForAll/safeTransferFrom",
+        "text_chunk": "    function isApprovedForAll(address account, address operator) public view virtual override returns (bool) {\n        return _operatorApprovals[account][operator];\n    }\n\n\n    function safeTransferFrom(\n        address from,\n        address to,\n        uint256 id,\n        uint256 amount,\n        bytes memory data\n    ) public virtual override {\n        require(\n            from == _msgSender() || isApprovedForAll(from, _msgSender()),\n            \"ERC1155: caller is not token owner nor approved\"\n        );\n        _safeTransferFrom(from, to, id, amount, data);\n    }\n",
+        "formal_property": "rule noTransferEffectOnApproval(env e){\n    address from; address to;\n    address owner; address operator;\n    uint256 id; uint256 amount; \n    bytes data;\n\n    bool approveBefore = isApprovedForAll(owner, operator);\n    safeTransferFrom(e, from, to, id, amount, data);\n    bool approveAfter = isApprovedForAll(owner, operator);\n    assert approveBefore == approveAfter, \"Something was effected\";\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "noTransferEffectOnApproval",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "isApprovedForAll",
+                "safeTransferFrom"
+            ],
+            "start_line": 385,
+            "end_line": 398,
+            "block_hash": "16c413a8816160d8bfa05b3c51d3e4b9"
+        }
+    },
+    {
+        "id": "ERC1155_noTransferBatchEffectOnApproval_ea660981",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC1155.sol",
+        "target_function": "isApprovedForAll/safeBatchTransferFrom",
+        "text_chunk": "    function isApprovedForAll(address account, address operator) public view virtual override returns (bool) {\n        return _operatorApprovals[account][operator];\n    }\n\n\n    function safeBatchTransferFrom(\n        address from,\n        address to,\n        uint256[] memory ids,\n        uint256[] memory amounts,\n        bytes memory data\n    ) public virtual override {\n        require(\n            from == _msgSender() || isApprovedForAll(from, _msgSender()),\n            \"ERC1155: caller is not token owner nor approved\"\n        );\n        _safeBatchTransferFrom(from, to, ids, amounts, data);\n    }\n",
+        "formal_property": "rule noTransferBatchEffectOnApproval(env e){\n    address from; address to;\n    address owner; address operator;\n    uint256[] ids; uint256[] amounts;\n    bytes data;\n\n    bool approveBefore = isApprovedForAll(owner, operator);\n    safeBatchTransferFrom(e, from, to, ids, amounts, data);\n    bool approveAfter = isApprovedForAll(owner, operator);\n    assert approveBefore == approveAfter, \"Something was effected\";\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "noTransferBatchEffectOnApproval",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "isApprovedForAll",
+                "safeBatchTransferFrom"
+            ],
+            "start_line": 403,
+            "end_line": 416,
+            "block_hash": "ea66098178b3db47dee58539af4eb6d3"
+        }
+    },
+    {
+        "id": "ERC1155_mintAdditivity_a2fd2aeb",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC1155.sol",
+        "target_function": "balanceOf",
+        "text_chunk": "    function balanceOf(address account, uint256 id) public view virtual override returns (uint256) {\n        require(account != address(0), \"ERC1155: address zero is not a valid owner\");\n        return _balances[id][account];\n    }\n",
+        "formal_property": "rule mintAdditivity(env e){\n    address to; uint256 id; uint256 amount; uint256 amount1; uint256 amount2; bytes data;\n    require amount == amount1 + amount2;\n\n    storage initialStorage = lastStorage;\n    mint(e, to, id, amount, data);\n    uint256 balanceAfterSingleTransaction = balanceOf(to, id);\n    mint(e, to, id, amount1, data) at initialStorage;\n    mint(e, to, id, amount2, data);\n    uint256 balanceAfterDoubleTransaction = balanceOf(to, id);\n    assert balanceAfterSingleTransaction == balanceAfterDoubleTransaction, \"Not additive\";\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "mintAdditivity",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "balanceOf",
+                "mint"
+            ],
+            "start_line": 427,
+            "end_line": 443,
+            "block_hash": "a2fd2aebae6b7b34b7ff83570f445099"
+        }
+    },
+    {
+        "id": "ERC1155_mintRevertCases_d5176365",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC1155.sol",
+        "target_function": "UNKNOWN",
         "text_chunk": "// SPDX-License-Identifier: MIT\n// OpenZeppelin Contracts (last updated v4.6.0) (token/ERC1155/ERC1155.sol)\n\npragma solidity ^0.8.0;\n\nimport \"./IERC1155.sol\";\nimport \"./IERC1155Receiver.sol\";\nimport \"./extensions/IERC1155MetadataURI.sol\";\nimport \"../../utils/Address.sol\";\nimport \"../../utils/Context.sol\";\nimport \"../../utils/introspection/ERC165.sol\";\n\ncontract ERC1155 is Context, ERC165, IERC1155, IERC1155MetadataURI {\n    using Address for address;\n    mapping(uint256 => mapping(address => uint256)) private _balances;\n    mapping(address => mapping(address => bool)) private _operatorApprovals;\n    string private _uri;\n    constructor(string memory uri_) {\n        _setURI(uri_);\n    }\n    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC165, IERC165) returns (bool) {\n        return\n            interfaceId == type(IERC1155).interfaceId ||\n            interfaceId == type(IERC1155MetadataURI).interfaceId ||\n            super.supportsInterface(interfaceId);\n    }\n    function uri(uint256) public view virtual override returns (string memory) {\n        return _uri;\n    }\n    function balanceOf(address account, uint256 id) public view virtual override returns (uint256) {\n        require(account != address(0), \"ERC1155: address zero is not a valid owner\");\n        return _balances[id][account];\n    }\n    function balanceOfBatch(address[] memory accounts, uint256[] memory ids)\n        public\n        view\n        virtual\n        override\n        returns (uint256[] memory)\n    {\n        require(accounts.length == ids.length, \"ERC1155: accounts and ids length mismatch\");\n\n        uint256[] memory batchBalances = new uint256[](accounts.length);\n\n        for (uint256 i = 0; i < accounts.length; ++i) {\n            batchBalances[i] = balanceOf(accounts[i], ids[i]);\n        }\n\n        return batchBalances;\n    }\n    function setApprovalForAll(address operator, bool approved) public virtual override {\n        _setApprovalForAll(_msgSender(), operator, approved);\n    }\n    function isApprovedForAll(address account, address operator) public view virtual override returns (bool) {\n        return _operatorApprovals[account][operator];\n    }\n    function safeTransferFrom(\n        address from,\n        address to,\n        uint256 id,\n        uint256 amount,\n        bytes memory data\n    ) public virtual override {\n        require(\n            from == _msgSender() || isApprovedForAll(from, _msgSender()),\n            \"ERC1155: caller is not token owner nor approved\"\n        );\n        _safeTransferFrom(from, to, id, amount, data);\n    }\n    function safeBatchTransferFrom(\n        address from,\n        address to,\n        uint256[] memory ids,\n        uint256[] memory amounts,\n        bytes memory data\n    ) public virtual override {\n        require(\n            from == _msgSender() || isApprovedForAll(from, _msgSender()),\n            \"ERC1155: caller is not token owner nor approved\"\n        );\n        _safeBatchTransferFrom(from, to, ids, amounts, data);\n    }\n    function _safeTransferFrom(\n        address from,\n        address to,\n        uint256 id,\n        uint256 amount,\n        bytes memory data\n    ) internal virtual {\n        require(to != address(0), \"ERC1155: transfer to the zero address\");\n\n        address operator = _msgSender();\n        uint256[] memory ids = _asSingletonArray(id);\n        uint256[] memory amounts = _asSingletonArray(amount);\n\n        _beforeTokenTransfer(operator, from, to, ids, amounts, data);\n\n        uint256 fromBalance = _balances[id][from];\n        require(fromBalance >= amount, \"ERC1155: insufficient balance for transfer\");\n        unchecked {\n            _balances[id][from] = fromBalance - amount;\n        }\n        _balances[id][to] += amount;\n\n        emit TransferSingle(operator, from, to, id, amount);\n\n        _afterTokenTransfer(operator, from, to, ids, amounts, data);\n\n        _doSafeTransferAcceptanceCheck(operator, from, to, id, amount, data);\n    }\n    function _safeBatchTransferFrom(\n        address from,\n        address to,\n        uint256[] memory ids,\n        uint256[] memory amounts,\n        bytes memory data\n    ) internal virtual {\n        require(ids.length == amounts.length, \"ERC1155: ids and amounts length mismatch\");\n        require(to != address(0), \"ERC1155: transfer to the zero address\");\n\n        address operator = _msgSender();\n\n        _beforeTokenTransfer(operator, from, to, ids, amounts, data);\n\n        for (uint256 i = 0; i < ids.length; ++i) {\n            uint256 id = ids[i];\n            uint256 amount = amounts[i];\n\n            uint256 fromBalance = _balances[id][from];\n            require(fromBalance >= amount, \"ERC1155: insufficient balance for transfer\");\n            unchecked {\n                _balances[id][from] = fromBalance - amount;\n            }\n            _balances[id][to] += amount;\n        }\n\n        emit TransferBatch(operator, from, to, ids, amounts);\n\n        _afterTokenTransfer(operator, from, to, ids, amounts, data);\n\n        _doSafeBatchTransferAcceptanceCheck(operator, from, to, ids, amounts, data);\n    }\n    function _setURI(string memory newuri) internal virtual {\n        _uri = newuri;\n    }\n    function _mint(\n        address to,\n        uint256 id,\n        uint256 amount,\n        bytes memory data\n    ) internal virtual {\n        require(to != address(0), \"ERC1155: mint to the zero address\");\n\n        address operator = _msgSender();\n        uint256[] memory ids = _asSingletonArray(id);\n        uint256[] memory amounts = _asSingletonArray(amount);\n\n        _beforeTokenTransfer(operator, address(0), to, ids, amounts, data);\n\n        _balances[id][to] += amount;\n        emit TransferSingle(operator, address(0), to, id, amount);\n\n        _afterTokenTransfer(operator, address(0), to, ids, amounts, data);\n\n        _doSafeTransferAcceptanceCheck(operator, address(0), to, id, amount, data);\n    }\n    function _mintBatch(\n        address to,\n        uint256[] memory ids,\n        uint256[] memory amounts,\n        bytes memory data\n    ) internal virtual {\n        require(to != address(0), \"ERC1155: mint to the zero address\");\n        require(ids.length == amounts.length, \"ERC1155: ids and amounts length mismatch\");\n\n        address operator = _msgSender();\n\n        _beforeTokenTransfer(operator, address(0), to, ids, amounts, data);\n\n        for (uint256 i = 0; i < ids.length; i++) {\n            _balances[ids[i]][to] += amounts[i];\n        }\n\n        emit TransferBatch(operator, address(0), to, ids, amounts);\n\n        _afterTokenTransfer(operator, address(0), to, ids, amounts, data);\n\n        _doSafeBatchTransferAcceptanceCheck(operator, address(0), to, ids, amounts, data);\n    }\n    function _burn(\n        address from,\n        uint256 id,\n        uint256 amount\n    ) internal virtual {\n        require(from != address(0), \"ERC1155: burn from the zero address\");\n\n        address operator = _msgSender();\n        uint256[] memory ids = _asSingletonArray(id);\n        uint256[] memory amounts = _asSingletonArray(amount);\n\n        _beforeTokenTransfer(operator, from, address(0), ids, amounts, \"\");\n\n        uint256 fromBalance = _balances[id][from];\n        require(fromBalance >= amount, \"ERC1155: burn amount exceeds balance\");\n        unchecked {\n            _balances[id][from] = fromBalance - amount;\n        }\n\n        emit TransferSingle(operator, from, address(0), id, amount);\n\n        _afterTokenTransfer(operator, from, address(0), ids, amounts, \"\");\n    }\n    function _burnBatch(\n        address from,\n        uint256[] memory ids,\n        uint256[] memory amounts\n    ) internal virtual {\n        require(from != address(0), \"ERC1155: burn from the zero address\");\n        require(ids.length == amounts.length, \"ERC1155: ids and amounts length mismatch\");\n\n        address operator = _msgSender();\n\n        _beforeTokenTransfer(operator, from, address(0), ids, amounts, \"\");\n\n        for (uint256 i = 0; i < ids.length; i++) {\n            uint256 id = ids[i];\n            uint256 amount = amounts[i];\n\n            uint256 fromBalance = _balances[id][from];\n            require(fromBalance >= amount, \"ERC1155: burn amount exceeds balance\");\n            unchecked {\n                _balances[id][from] = fromBalance - amount;\n            }\n        }\n\n        emit TransferBatch(operator, from, address(0), ids, amounts);\n\n        _afterTokenTransfer(operator, from, address(0), ids, amounts, \"\");\n    }\n    function _setApprovalForAll(\n        address owner,\n        address operator,\n        bool approved\n    ) internal virtual {\n        require(owner != operator, \"ERC1155: setting approval status for self\");\n        _operatorApprovals[owner][operator] = approved;\n        emit ApprovalForAll(owner, operator, approved);\n    }\n    function _beforeTokenTransfer(\n        address operator,\n        address from,\n        address to,\n        uint256[] memory ids,\n        uint256[] memory amounts,\n        bytes memory data\n    ) internal virtual {}\n    function _afterTokenTransfer(\n        address operator,\n        address from,\n        address to,\n        uint256[] memory ids,\n        uint256[] memory amounts,\n        bytes memory data\n    ) internal virtual {}\n\n    function _doSafeTransferAcceptanceCheck(\n        address operator,\n        address from,\n        address to,\n        uint256 id,\n        uint256 amount,\n        bytes memory data\n    ) private {\n        if (to.isContract()) {\n            try IERC1155Receiver(to).onERC1155Received(operator, from, id, amount, data) returns (bytes4 response) {\n                if (response != IERC1155Receiver.onERC1155Received.selector) {\n                    revert(\"ERC1155: ERC1155Receiver rejected tokens\");\n                }\n            } catch Error(string memory reason) {\n                revert(reason);\n            } catch {\n                revert(\"ERC1155: transfer to non ERC1155Receiver implementer\");\n            }\n        }\n    }\n\n    function _doSafeBatchTransferAcceptanceCheck(\n        address operator,\n        address from,\n        address to,\n        uint256[] memory ids,\n        uint256[] memory amounts,\n        bytes memory data\n    ) private {\n        if (to.isContract()) {\n            try IERC1155Receiver(to).onERC1155BatchReceived(operator, from, ids, amounts, data) returns (\n                bytes4 response\n            ) {\n                if (response != IERC1155Receiver.onERC1155BatchReceived.selector) {\n                    revert(\"ERC1155: ERC1155Receiver rejected tokens\");\n                }\n            } catch Error(string memory reason) {\n                revert(reason);\n            } catch {\n                revert(\"ERC1155: transfer to non ERC1155Receiver implementer\");\n            }\n        }\n    }\n\n    function _asSingletonArray(uint256 element) private pure returns (uint256[] memory) {\n        uint256[] memory array = new uint256[](1);\n        array[0] = element;\n\n        return array;\n    }\n}\n",
-        "formal_property": "rule transfersHaveSameLengthInputArrays {\n    env e;\n\n    address recipient; bytes data;\n    uint256[] tokens; uint256[] transferAmounts;\n    uint max_int = 0xffffffffffffffffffffffffffffffff;\n\n    require tokens.length >= 0 && tokens.length <= max_int;\n    require transferAmounts.length >= 0 && transferAmounts.length <= max_int;\n\n    safeBatchTransferFrom(e, _, recipient, tokens, transferAmounts, data);\n\n    uint256 tokensLength = tokens.length;\n    uint256 transferAmountsLength = transferAmounts.length;\n\n    assert tokens.length == transferAmounts.length, \n        \"If transfer methods do not revert, the input arrays must be the same length\";\n}",
+        "formal_property": "rule mintRevertCases(env e){\n    address to; uint256 id; uint256 amount; bytes data;\n\n    mint@withrevert(e, to, id, amount, data);\n    assert to == 0 => lastReverted, \"Should revert\";\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "mintRevertCases",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "mint"
+            ],
+            "start_line": 448,
+            "end_line": 454,
+            "block_hash": "d517636580331a961190269706016c08"
+        }
+    },
+    {
+        "id": "ERC1155_mintBatchRevertCases_f0ae0a83",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC1155.sol",
+        "target_function": "UNKNOWN",
+        "text_chunk": "// SPDX-License-Identifier: MIT\n// OpenZeppelin Contracts (last updated v4.6.0) (token/ERC1155/ERC1155.sol)\n\npragma solidity ^0.8.0;\n\nimport \"./IERC1155.sol\";\nimport \"./IERC1155Receiver.sol\";\nimport \"./extensions/IERC1155MetadataURI.sol\";\nimport \"../../utils/Address.sol\";\nimport \"../../utils/Context.sol\";\nimport \"../../utils/introspection/ERC165.sol\";\n\ncontract ERC1155 is Context, ERC165, IERC1155, IERC1155MetadataURI {\n    using Address for address;\n    mapping(uint256 => mapping(address => uint256)) private _balances;\n    mapping(address => mapping(address => bool)) private _operatorApprovals;\n    string private _uri;\n    constructor(string memory uri_) {\n        _setURI(uri_);\n    }\n    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC165, IERC165) returns (bool) {\n        return\n            interfaceId == type(IERC1155).interfaceId ||\n            interfaceId == type(IERC1155MetadataURI).interfaceId ||\n            super.supportsInterface(interfaceId);\n    }\n    function uri(uint256) public view virtual override returns (string memory) {\n        return _uri;\n    }\n    function balanceOf(address account, uint256 id) public view virtual override returns (uint256) {\n        require(account != address(0), \"ERC1155: address zero is not a valid owner\");\n        return _balances[id][account];\n    }\n    function balanceOfBatch(address[] memory accounts, uint256[] memory ids)\n        public\n        view\n        virtual\n        override\n        returns (uint256[] memory)\n    {\n        require(accounts.length == ids.length, \"ERC1155: accounts and ids length mismatch\");\n\n        uint256[] memory batchBalances = new uint256[](accounts.length);\n\n        for (uint256 i = 0; i < accounts.length; ++i) {\n            batchBalances[i] = balanceOf(accounts[i], ids[i]);\n        }\n\n        return batchBalances;\n    }\n    function setApprovalForAll(address operator, bool approved) public virtual override {\n        _setApprovalForAll(_msgSender(), operator, approved);\n    }\n    function isApprovedForAll(address account, address operator) public view virtual override returns (bool) {\n        return _operatorApprovals[account][operator];\n    }\n    function safeTransferFrom(\n        address from,\n        address to,\n        uint256 id,\n        uint256 amount,\n        bytes memory data\n    ) public virtual override {\n        require(\n            from == _msgSender() || isApprovedForAll(from, _msgSender()),\n            \"ERC1155: caller is not token owner nor approved\"\n        );\n        _safeTransferFrom(from, to, id, amount, data);\n    }\n    function safeBatchTransferFrom(\n        address from,\n        address to,\n        uint256[] memory ids,\n        uint256[] memory amounts,\n        bytes memory data\n    ) public virtual override {\n        require(\n            from == _msgSender() || isApprovedForAll(from, _msgSender()),\n            \"ERC1155: caller is not token owner nor approved\"\n        );\n        _safeBatchTransferFrom(from, to, ids, amounts, data);\n    }\n    function _safeTransferFrom(\n        address from,\n        address to,\n        uint256 id,\n        uint256 amount,\n        bytes memory data\n    ) internal virtual {\n        require(to != address(0), \"ERC1155: transfer to the zero address\");\n\n        address operator = _msgSender();\n        uint256[] memory ids = _asSingletonArray(id);\n        uint256[] memory amounts = _asSingletonArray(amount);\n\n        _beforeTokenTransfer(operator, from, to, ids, amounts, data);\n\n        uint256 fromBalance = _balances[id][from];\n        require(fromBalance >= amount, \"ERC1155: insufficient balance for transfer\");\n        unchecked {\n            _balances[id][from] = fromBalance - amount;\n        }\n        _balances[id][to] += amount;\n\n        emit TransferSingle(operator, from, to, id, amount);\n\n        _afterTokenTransfer(operator, from, to, ids, amounts, data);\n\n        _doSafeTransferAcceptanceCheck(operator, from, to, id, amount, data);\n    }\n    function _safeBatchTransferFrom(\n        address from,\n        address to,\n        uint256[] memory ids,\n        uint256[] memory amounts,\n        bytes memory data\n    ) internal virtual {\n        require(ids.length == amounts.length, \"ERC1155: ids and amounts length mismatch\");\n        require(to != address(0), \"ERC1155: transfer to the zero address\");\n\n        address operator = _msgSender();\n\n        _beforeTokenTransfer(operator, from, to, ids, amounts, data);\n\n        for (uint256 i = 0; i < ids.length; ++i) {\n            uint256 id = ids[i];\n            uint256 amount = amounts[i];\n\n            uint256 fromBalance = _balances[id][from];\n            require(fromBalance >= amount, \"ERC1155: insufficient balance for transfer\");\n            unchecked {\n                _balances[id][from] = fromBalance - amount;\n            }\n            _balances[id][to] += amount;\n        }\n\n        emit TransferBatch(operator, from, to, ids, amounts);\n\n        _afterTokenTransfer(operator, from, to, ids, amounts, data);\n\n        _doSafeBatchTransferAcceptanceCheck(operator, from, to, ids, amounts, data);\n    }\n    function _setURI(string memory newuri) internal virtual {\n        _uri = newuri;\n    }\n    function _mint(\n        address to,\n        uint256 id,\n        uint256 amount,\n        bytes memory data\n    ) internal virtual {\n        require(to != address(0), \"ERC1155: mint to the zero address\");\n\n        address operator = _msgSender();\n        uint256[] memory ids = _asSingletonArray(id);\n        uint256[] memory amounts = _asSingletonArray(amount);\n\n        _beforeTokenTransfer(operator, address(0), to, ids, amounts, data);\n\n        _balances[id][to] += amount;\n        emit TransferSingle(operator, address(0), to, id, amount);\n\n        _afterTokenTransfer(operator, address(0), to, ids, amounts, data);\n\n        _doSafeTransferAcceptanceCheck(operator, address(0), to, id, amount, data);\n    }\n    function _mintBatch(\n        address to,\n        uint256[] memory ids,\n        uint256[] memory amounts,\n        bytes memory data\n    ) internal virtual {\n        require(to != address(0), \"ERC1155: mint to the zero address\");\n        require(ids.length == amounts.length, \"ERC1155: ids and amounts length mismatch\");\n\n        address operator = _msgSender();\n\n        _beforeTokenTransfer(operator, address(0), to, ids, amounts, data);\n\n        for (uint256 i = 0; i < ids.length; i++) {\n            _balances[ids[i]][to] += amounts[i];\n        }\n\n        emit TransferBatch(operator, address(0), to, ids, amounts);\n\n        _afterTokenTransfer(operator, address(0), to, ids, amounts, data);\n\n        _doSafeBatchTransferAcceptanceCheck(operator, address(0), to, ids, amounts, data);\n    }\n    function _burn(\n        address from,\n        uint256 id,\n        uint256 amount\n    ) internal virtual {\n        require(from != address(0), \"ERC1155: burn from the zero address\");\n\n        address operator = _msgSender();\n        uint256[] memory ids = _asSingletonArray(id);\n        uint256[] memory amounts = _asSingletonArray(amount);\n\n        _beforeTokenTransfer(operator, from, address(0), ids, amounts, \"\");\n\n        uint256 fromBalance = _balances[id][from];\n        require(fromBalance >= amount, \"ERC1155: burn amount exceeds balance\");\n        unchecked {\n            _balances[id][from] = fromBalance - amount;\n        }\n\n        emit TransferSingle(operator, from, address(0), id, amount);\n\n        _afterTokenTransfer(operator, from, address(0), ids, amounts, \"\");\n    }\n    function _burnBatch(\n        address from,\n        uint256[] memory ids,\n        uint256[] memory amounts\n    ) internal virtual {\n        require(from != address(0), \"ERC1155: burn from the zero address\");\n        require(ids.length == amounts.length, \"ERC1155: ids and amounts length mismatch\");\n\n        address operator = _msgSender();\n\n        _beforeTokenTransfer(operator, from, address(0), ids, amounts, \"\");\n\n        for (uint256 i = 0; i < ids.length; i++) {\n            uint256 id = ids[i];\n            uint256 amount = amounts[i];\n\n            uint256 fromBalance = _balances[id][from];\n            require(fromBalance >= amount, \"ERC1155: burn amount exceeds balance\");\n            unchecked {\n                _balances[id][from] = fromBalance - amount;\n            }\n        }\n\n        emit TransferBatch(operator, from, address(0), ids, amounts);\n\n        _afterTokenTransfer(operator, from, address(0), ids, amounts, \"\");\n    }\n    function _setApprovalForAll(\n        address owner,\n        address operator,\n        bool approved\n    ) internal virtual {\n        require(owner != operator, \"ERC1155: setting approval status for self\");\n        _operatorApprovals[owner][operator] = approved;\n        emit ApprovalForAll(owner, operator, approved);\n    }\n    function _beforeTokenTransfer(\n        address operator,\n        address from,\n        address to,\n        uint256[] memory ids,\n        uint256[] memory amounts,\n        bytes memory data\n    ) internal virtual {}\n    function _afterTokenTransfer(\n        address operator,\n        address from,\n        address to,\n        uint256[] memory ids,\n        uint256[] memory amounts,\n        bytes memory data\n    ) internal virtual {}\n\n    function _doSafeTransferAcceptanceCheck(\n        address operator,\n        address from,\n        address to,\n        uint256 id,\n        uint256 amount,\n        bytes memory data\n    ) private {\n        if (to.isContract()) {\n            try IERC1155Receiver(to).onERC1155Received(operator, from, id, amount, data) returns (bytes4 response) {\n                if (response != IERC1155Receiver.onERC1155Received.selector) {\n                    revert(\"ERC1155: ERC1155Receiver rejected tokens\");\n                }\n            } catch Error(string memory reason) {\n                revert(reason);\n            } catch {\n                revert(\"ERC1155: transfer to non ERC1155Receiver implementer\");\n            }\n        }\n    }\n\n    function _doSafeBatchTransferAcceptanceCheck(\n        address operator,\n        address from,\n        address to,\n        uint256[] memory ids,\n        uint256[] memory amounts,\n        bytes memory data\n    ) private {\n        if (to.isContract()) {\n            try IERC1155Receiver(to).onERC1155BatchReceived(operator, from, ids, amounts, data) returns (\n                bytes4 response\n            ) {\n                if (response != IERC1155Receiver.onERC1155BatchReceived.selector) {\n                    revert(\"ERC1155: ERC1155Receiver rejected tokens\");\n                }\n            } catch Error(string memory reason) {\n                revert(reason);\n            } catch {\n                revert(\"ERC1155: transfer to non ERC1155Receiver implementer\");\n            }\n        }\n    }\n\n    function _asSingletonArray(uint256 element) private pure returns (uint256[] memory) {\n        uint256[] memory array = new uint256[](1);\n        array[0] = element;\n\n        return array;\n    }\n}\n",
+        "formal_property": "rule mintBatchRevertCases(env e){\n    address to; uint256[] ids; uint256[] amounts; bytes data;\n\n    require ids.length < 1000000000;\n    require amounts.length < 1000000000;\n    mintBatch@withrevert(e, to, ids, amounts, data);\n    assert (ids.length != amounts.length || to == 0) => lastReverted, \"Should revert\";\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "mintBatchRevertCases",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "mint",
+                "mintBatch"
+            ],
+            "start_line": 459,
+            "end_line": 468,
+            "block_hash": "f0ae0a8370db7f701151a6d0f0167e73"
+        }
+    },
+    {
+        "id": "ERC1155_mintCorrectWork_21895366",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC1155.sol",
+        "target_function": "balanceOf",
+        "text_chunk": "    function balanceOf(address account, uint256 id) public view virtual override returns (uint256) {\n        require(account != address(0), \"ERC1155: address zero is not a valid owner\");\n        return _balances[id][account];\n    }\n",
+        "formal_property": "rule mintCorrectWork(env e){\n    address to; uint256 id; uint256 amount; bytes data;\n\n    uint256 otherBalanceBefore = balanceOf(to, id);\n    mint(e, to, id, amount, data);\n    uint256 otherBalanceAfter = balanceOf(to, id);\n    \n    assert otherBalanceBefore == otherBalanceAfter - amount, \"Something is wrong\";\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "mintCorrectWork",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "balanceOf",
+                "mint"
+            ],
+            "start_line": 473,
+            "end_line": 483,
+            "block_hash": "218953668cc7a80fda109c1819e4b512"
+        }
+    },
+    {
+        "id": "ERC1155_mintBatchCorrectWork_9029b52b",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC1155.sol",
+        "target_function": "balanceOf",
+        "text_chunk": "    function balanceOf(address account, uint256 id) public view virtual override returns (uint256) {\n        require(account != address(0), \"ERC1155: address zero is not a valid owner\");\n        return _balances[id][account];\n    }\n",
+        "formal_property": "rule mintBatchCorrectWork(env e){\n    address to;\n    uint256 id1; uint256 id2; uint256 id3; \n    uint256 amount1; uint256 amount2; uint256 amount3;\n    uint256[] ids; uint256[] amounts;\n    bytes data;\n\n    require ids.length == 3; \n    require amounts.length == 3; \n    require id1 != id2 && id2 != id3 && id3 != id1;\n    require ids[0] == id1; require ids[1] == id2; require ids[2] == id3;\n    require amounts[0] == amount1; require amounts[1] == amount2; require amounts[2] == amount3;\n    uint256 otherBalanceBefore1 = balanceOf(to, id1);\n    uint256 otherBalanceBefore2 = balanceOf(to, id2);\n    uint256 otherBalanceBefore3 = balanceOf(to, id3);\n    mintBatch(e, to, ids, amounts, data);\n    uint256 otherBalanceAfter1 = balanceOf(to, id1);\n    uint256 otherBalanceAfter2 = balanceOf(to, id2);\n    uint256 otherBalanceAfter3 = balanceOf(to, id3);\n    \n    assert otherBalanceBefore1 == otherBalanceAfter1 - amount1\n            && otherBalanceBefore2 == otherBalanceAfter2 - amount2\n            && otherBalanceBefore3 == otherBalanceAfter3 - amount3\n            , \"Something is wrong\";\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "mintBatchCorrectWork",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "balanceOf",
+                "mint",
+                "mintBatch"
+            ],
+            "start_line": 488,
+            "end_line": 516,
+            "block_hash": "9029b52b0b44bd8f5fbd2004fea67194"
+        }
+    },
+    {
+        "id": "ERC1155_cantMintMoreSingle_cb19cca2",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC1155.sol",
+        "target_function": "balanceOf",
+        "text_chunk": "    function balanceOf(address account, uint256 id) public view virtual override returns (uint256) {\n        require(account != address(0), \"ERC1155: address zero is not a valid owner\");\n        return _balances[id][account];\n    }\n",
+        "formal_property": "rule cantMintMoreSingle(env e){\n    address to; uint256 id; uint256 amount; bytes data;\n\n    require to_mathint(balanceOf(to, id) + amount) > max_uint256;\n    mint@withrevert(e, to, id, amount, data);\n    \n    assert lastReverted, \"Don't be too greedy!\";\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "cantMintMoreSingle",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "balanceOf",
+                "mint"
+            ],
+            "start_line": 521,
+            "end_line": 529,
+            "block_hash": "cb19cca2c23cf397d325d71238a2ba2e"
+        }
+    },
+    {
+        "id": "ERC1155_cantMintMoreBatch_09fed02d",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC1155.sol",
+        "target_function": "balanceOf",
+        "text_chunk": "    function balanceOf(address account, uint256 id) public view virtual override returns (uint256) {\n        require(account != address(0), \"ERC1155: address zero is not a valid owner\");\n        return _balances[id][account];\n    }\n",
+        "formal_property": "rule cantMintMoreBatch(env e){\n    address to; bytes data;\n    uint256 id1; uint256 id2; uint256 id3; \n    uint256 amount1; uint256 amount2; uint256 amount3;\n    uint256[] ids; uint256[] amounts;\n\n    require ids.length == 3; \n    require amounts.length == 3;\n    require ids[0] == id1; require ids[1] == id2; require ids[2] == id3;\n    require amounts[0] == amount1; require amounts[1] == amount2; require amounts[2] == amount3;\n    require to_mathint(balanceOf(to, id1) + amount1) > max_uint256 \n                || to_mathint(balanceOf(to, id2) + amount2) > max_uint256\n                || to_mathint(balanceOf(to, id3) + amount3) > max_uint256;\n    mintBatch@withrevert(e, to, ids, amounts, data);\n    \n    assert lastReverted, \"Don't be too greedy!\";\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "cantMintMoreBatch",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "balanceOf",
+                "mint",
+                "mintBatch"
+            ],
+            "start_line": 534,
+            "end_line": 553,
+            "block_hash": "09fed02d108e3ba66ada09dc7eac7c9f"
+        }
+    },
+    {
+        "id": "ERC1155_cantMintOtherBalances_6b00bbbe",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC1155.sol",
+        "target_function": "balanceOf",
+        "text_chunk": "    function balanceOf(address account, uint256 id) public view virtual override returns (uint256) {\n        require(account != address(0), \"ERC1155: address zero is not a valid owner\");\n        return _balances[id][account];\n    }\n",
+        "formal_property": "rule cantMintOtherBalances(env e){\n    address to; uint256 id; uint256 amount; bytes data;\n    address other;\n\n    uint256 otherBalanceBefore = balanceOf(other, id);\n    mint(e, to, id, amount, data);\n    uint256 otherBalanceAfter = balanceOf(other, id);\n    \n    assert other != to => otherBalanceBefore == otherBalanceAfter, \"I like to see your money disappearing\";\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "cantMintOtherBalances",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "balanceOf",
+                "mint"
+            ],
+            "start_line": 558,
+            "end_line": 569,
+            "block_hash": "6b00bbbe45ede75d7ddd5141b1a9c16e"
+        }
+    },
+    {
+        "id": "ERC1155_cantMintBatchOtherBalances_16cb5565",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC1155.sol",
+        "target_function": "balanceOf",
+        "text_chunk": "    function balanceOf(address account, uint256 id) public view virtual override returns (uint256) {\n        require(account != address(0), \"ERC1155: address zero is not a valid owner\");\n        return _balances[id][account];\n    }\n",
+        "formal_property": "rule cantMintBatchOtherBalances(env e){\n    address to;\n    uint256 id1; uint256 id2; uint256 id3; \n    uint256[] ids; uint256[] amounts;\n    address other;\n    bytes data;\n\n    uint256 otherBalanceBefore1 = balanceOf(other, id1);\n    uint256 otherBalanceBefore2 = balanceOf(other, id2);\n    uint256 otherBalanceBefore3 = balanceOf(other, id3);\n    mintBatch(e, to, ids, amounts, data);\n    uint256 otherBalanceAfter1 = balanceOf(other, id1);\n    uint256 otherBalanceAfter2 = balanceOf(other, id2);\n    uint256 otherBalanceAfter3 = balanceOf(other, id3);\n    \n    assert other != to => (otherBalanceBefore1 == otherBalanceAfter1 \n                                && otherBalanceBefore2 == otherBalanceAfter2 \n                                && otherBalanceBefore3 == otherBalanceAfter3)\n                                , \"I like to see your money disappearing\";\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "cantMintBatchOtherBalances",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "balanceOf",
+                "mint",
+                "mintBatch"
+            ],
+            "start_line": 574,
+            "end_line": 595,
+            "block_hash": "16cb556580292d5ad2a6e776ac813f67"
+        }
+    },
+    {
+        "id": "ERC1155_burnAdditivity_0647824a",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC1155.sol",
+        "target_function": "balanceOf",
+        "text_chunk": "    function balanceOf(address account, uint256 id) public view virtual override returns (uint256) {\n        require(account != address(0), \"ERC1155: address zero is not a valid owner\");\n        return _balances[id][account];\n    }\n",
+        "formal_property": "rule burnAdditivity(env e){\n    address from; uint256 id; uint256 amount; uint256 amount1; uint256 amount2;\n    require amount == amount1 + amount2;\n\n    storage initialStorage = lastStorage;\n    burn(e, from, id, amount);\n    uint256 balanceAfterSingleTransaction = balanceOf(from, id);\n    burn(e, from, id, amount1) at initialStorage;\n    burn(e, from, id, amount2);\n    uint256 balanceAfterDoubleTransaction = balanceOf(from, id);\n    assert balanceAfterSingleTransaction == balanceAfterDoubleTransaction, \"Not additive\";\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "burnAdditivity",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "balanceOf",
+                "burn"
+            ],
+            "start_line": 605,
+            "end_line": 621,
+            "block_hash": "0647824a571bb13b234f2ba862c8278e"
+        }
+    },
+    {
+        "id": "ERC1155_burnRevertCases_2423bfd1",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC1155.sol",
+        "target_function": "UNKNOWN",
+        "text_chunk": "// SPDX-License-Identifier: MIT\n// OpenZeppelin Contracts (last updated v4.6.0) (token/ERC1155/ERC1155.sol)\n\npragma solidity ^0.8.0;\n\nimport \"./IERC1155.sol\";\nimport \"./IERC1155Receiver.sol\";\nimport \"./extensions/IERC1155MetadataURI.sol\";\nimport \"../../utils/Address.sol\";\nimport \"../../utils/Context.sol\";\nimport \"../../utils/introspection/ERC165.sol\";\n\ncontract ERC1155 is Context, ERC165, IERC1155, IERC1155MetadataURI {\n    using Address for address;\n    mapping(uint256 => mapping(address => uint256)) private _balances;\n    mapping(address => mapping(address => bool)) private _operatorApprovals;\n    string private _uri;\n    constructor(string memory uri_) {\n        _setURI(uri_);\n    }\n    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC165, IERC165) returns (bool) {\n        return\n            interfaceId == type(IERC1155).interfaceId ||\n            interfaceId == type(IERC1155MetadataURI).interfaceId ||\n            super.supportsInterface(interfaceId);\n    }\n    function uri(uint256) public view virtual override returns (string memory) {\n        return _uri;\n    }\n    function balanceOf(address account, uint256 id) public view virtual override returns (uint256) {\n        require(account != address(0), \"ERC1155: address zero is not a valid owner\");\n        return _balances[id][account];\n    }\n    function balanceOfBatch(address[] memory accounts, uint256[] memory ids)\n        public\n        view\n        virtual\n        override\n        returns (uint256[] memory)\n    {\n        require(accounts.length == ids.length, \"ERC1155: accounts and ids length mismatch\");\n\n        uint256[] memory batchBalances = new uint256[](accounts.length);\n\n        for (uint256 i = 0; i < accounts.length; ++i) {\n            batchBalances[i] = balanceOf(accounts[i], ids[i]);\n        }\n\n        return batchBalances;\n    }\n    function setApprovalForAll(address operator, bool approved) public virtual override {\n        _setApprovalForAll(_msgSender(), operator, approved);\n    }\n    function isApprovedForAll(address account, address operator) public view virtual override returns (bool) {\n        return _operatorApprovals[account][operator];\n    }\n    function safeTransferFrom(\n        address from,\n        address to,\n        uint256 id,\n        uint256 amount,\n        bytes memory data\n    ) public virtual override {\n        require(\n            from == _msgSender() || isApprovedForAll(from, _msgSender()),\n            \"ERC1155: caller is not token owner nor approved\"\n        );\n        _safeTransferFrom(from, to, id, amount, data);\n    }\n    function safeBatchTransferFrom(\n        address from,\n        address to,\n        uint256[] memory ids,\n        uint256[] memory amounts,\n        bytes memory data\n    ) public virtual override {\n        require(\n            from == _msgSender() || isApprovedForAll(from, _msgSender()),\n            \"ERC1155: caller is not token owner nor approved\"\n        );\n        _safeBatchTransferFrom(from, to, ids, amounts, data);\n    }\n    function _safeTransferFrom(\n        address from,\n        address to,\n        uint256 id,\n        uint256 amount,\n        bytes memory data\n    ) internal virtual {\n        require(to != address(0), \"ERC1155: transfer to the zero address\");\n\n        address operator = _msgSender();\n        uint256[] memory ids = _asSingletonArray(id);\n        uint256[] memory amounts = _asSingletonArray(amount);\n\n        _beforeTokenTransfer(operator, from, to, ids, amounts, data);\n\n        uint256 fromBalance = _balances[id][from];\n        require(fromBalance >= amount, \"ERC1155: insufficient balance for transfer\");\n        unchecked {\n            _balances[id][from] = fromBalance - amount;\n        }\n        _balances[id][to] += amount;\n\n        emit TransferSingle(operator, from, to, id, amount);\n\n        _afterTokenTransfer(operator, from, to, ids, amounts, data);\n\n        _doSafeTransferAcceptanceCheck(operator, from, to, id, amount, data);\n    }\n    function _safeBatchTransferFrom(\n        address from,\n        address to,\n        uint256[] memory ids,\n        uint256[] memory amounts,\n        bytes memory data\n    ) internal virtual {\n        require(ids.length == amounts.length, \"ERC1155: ids and amounts length mismatch\");\n        require(to != address(0), \"ERC1155: transfer to the zero address\");\n\n        address operator = _msgSender();\n\n        _beforeTokenTransfer(operator, from, to, ids, amounts, data);\n\n        for (uint256 i = 0; i < ids.length; ++i) {\n            uint256 id = ids[i];\n            uint256 amount = amounts[i];\n\n            uint256 fromBalance = _balances[id][from];\n            require(fromBalance >= amount, \"ERC1155: insufficient balance for transfer\");\n            unchecked {\n                _balances[id][from] = fromBalance - amount;\n            }\n            _balances[id][to] += amount;\n        }\n\n        emit TransferBatch(operator, from, to, ids, amounts);\n\n        _afterTokenTransfer(operator, from, to, ids, amounts, data);\n\n        _doSafeBatchTransferAcceptanceCheck(operator, from, to, ids, amounts, data);\n    }\n    function _setURI(string memory newuri) internal virtual {\n        _uri = newuri;\n    }\n    function _mint(\n        address to,\n        uint256 id,\n        uint256 amount,\n        bytes memory data\n    ) internal virtual {\n        require(to != address(0), \"ERC1155: mint to the zero address\");\n\n        address operator = _msgSender();\n        uint256[] memory ids = _asSingletonArray(id);\n        uint256[] memory amounts = _asSingletonArray(amount);\n\n        _beforeTokenTransfer(operator, address(0), to, ids, amounts, data);\n\n        _balances[id][to] += amount;\n        emit TransferSingle(operator, address(0), to, id, amount);\n\n        _afterTokenTransfer(operator, address(0), to, ids, amounts, data);\n\n        _doSafeTransferAcceptanceCheck(operator, address(0), to, id, amount, data);\n    }\n    function _mintBatch(\n        address to,\n        uint256[] memory ids,\n        uint256[] memory amounts,\n        bytes memory data\n    ) internal virtual {\n        require(to != address(0), \"ERC1155: mint to the zero address\");\n        require(ids.length == amounts.length, \"ERC1155: ids and amounts length mismatch\");\n\n        address operator = _msgSender();\n\n        _beforeTokenTransfer(operator, address(0), to, ids, amounts, data);\n\n        for (uint256 i = 0; i < ids.length; i++) {\n            _balances[ids[i]][to] += amounts[i];\n        }\n\n        emit TransferBatch(operator, address(0), to, ids, amounts);\n\n        _afterTokenTransfer(operator, address(0), to, ids, amounts, data);\n\n        _doSafeBatchTransferAcceptanceCheck(operator, address(0), to, ids, amounts, data);\n    }\n    function _burn(\n        address from,\n        uint256 id,\n        uint256 amount\n    ) internal virtual {\n        require(from != address(0), \"ERC1155: burn from the zero address\");\n\n        address operator = _msgSender();\n        uint256[] memory ids = _asSingletonArray(id);\n        uint256[] memory amounts = _asSingletonArray(amount);\n\n        _beforeTokenTransfer(operator, from, address(0), ids, amounts, \"\");\n\n        uint256 fromBalance = _balances[id][from];\n        require(fromBalance >= amount, \"ERC1155: burn amount exceeds balance\");\n        unchecked {\n            _balances[id][from] = fromBalance - amount;\n        }\n\n        emit TransferSingle(operator, from, address(0), id, amount);\n\n        _afterTokenTransfer(operator, from, address(0), ids, amounts, \"\");\n    }\n    function _burnBatch(\n        address from,\n        uint256[] memory ids,\n        uint256[] memory amounts\n    ) internal virtual {\n        require(from != address(0), \"ERC1155: burn from the zero address\");\n        require(ids.length == amounts.length, \"ERC1155: ids and amounts length mismatch\");\n\n        address operator = _msgSender();\n\n        _beforeTokenTransfer(operator, from, address(0), ids, amounts, \"\");\n\n        for (uint256 i = 0; i < ids.length; i++) {\n            uint256 id = ids[i];\n            uint256 amount = amounts[i];\n\n            uint256 fromBalance = _balances[id][from];\n            require(fromBalance >= amount, \"ERC1155: burn amount exceeds balance\");\n            unchecked {\n                _balances[id][from] = fromBalance - amount;\n            }\n        }\n\n        emit TransferBatch(operator, from, address(0), ids, amounts);\n\n        _afterTokenTransfer(operator, from, address(0), ids, amounts, \"\");\n    }\n    function _setApprovalForAll(\n        address owner,\n        address operator,\n        bool approved\n    ) internal virtual {\n        require(owner != operator, \"ERC1155: setting approval status for self\");\n        _operatorApprovals[owner][operator] = approved;\n        emit ApprovalForAll(owner, operator, approved);\n    }\n    function _beforeTokenTransfer(\n        address operator,\n        address from,\n        address to,\n        uint256[] memory ids,\n        uint256[] memory amounts,\n        bytes memory data\n    ) internal virtual {}\n    function _afterTokenTransfer(\n        address operator,\n        address from,\n        address to,\n        uint256[] memory ids,\n        uint256[] memory amounts,\n        bytes memory data\n    ) internal virtual {}\n\n    function _doSafeTransferAcceptanceCheck(\n        address operator,\n        address from,\n        address to,\n        uint256 id,\n        uint256 amount,\n        bytes memory data\n    ) private {\n        if (to.isContract()) {\n            try IERC1155Receiver(to).onERC1155Received(operator, from, id, amount, data) returns (bytes4 response) {\n                if (response != IERC1155Receiver.onERC1155Received.selector) {\n                    revert(\"ERC1155: ERC1155Receiver rejected tokens\");\n                }\n            } catch Error(string memory reason) {\n                revert(reason);\n            } catch {\n                revert(\"ERC1155: transfer to non ERC1155Receiver implementer\");\n            }\n        }\n    }\n\n    function _doSafeBatchTransferAcceptanceCheck(\n        address operator,\n        address from,\n        address to,\n        uint256[] memory ids,\n        uint256[] memory amounts,\n        bytes memory data\n    ) private {\n        if (to.isContract()) {\n            try IERC1155Receiver(to).onERC1155BatchReceived(operator, from, ids, amounts, data) returns (\n                bytes4 response\n            ) {\n                if (response != IERC1155Receiver.onERC1155BatchReceived.selector) {\n                    revert(\"ERC1155: ERC1155Receiver rejected tokens\");\n                }\n            } catch Error(string memory reason) {\n                revert(reason);\n            } catch {\n                revert(\"ERC1155: transfer to non ERC1155Receiver implementer\");\n            }\n        }\n    }\n\n    function _asSingletonArray(uint256 element) private pure returns (uint256[] memory) {\n        uint256[] memory array = new uint256[](1);\n        array[0] = element;\n\n        return array;\n    }\n}\n",
+        "formal_property": "rule burnRevertCases(env e){\n    address from; uint256 id; uint256 amount;\n\n    burn@withrevert(e, from, id, amount);\n    assert from == 0 => lastReverted, \"Should revert\";\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "burnRevertCases",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "burn"
+            ],
+            "start_line": 626,
+            "end_line": 632,
+            "block_hash": "2423bfd17ecf2ad6ff1922346540f51e"
+        }
+    },
+    {
+        "id": "ERC1155_burnBatchRevertCases_1279403c",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC1155.sol",
+        "target_function": "UNKNOWN",
+        "text_chunk": "// SPDX-License-Identifier: MIT\n// OpenZeppelin Contracts (last updated v4.6.0) (token/ERC1155/ERC1155.sol)\n\npragma solidity ^0.8.0;\n\nimport \"./IERC1155.sol\";\nimport \"./IERC1155Receiver.sol\";\nimport \"./extensions/IERC1155MetadataURI.sol\";\nimport \"../../utils/Address.sol\";\nimport \"../../utils/Context.sol\";\nimport \"../../utils/introspection/ERC165.sol\";\n\ncontract ERC1155 is Context, ERC165, IERC1155, IERC1155MetadataURI {\n    using Address for address;\n    mapping(uint256 => mapping(address => uint256)) private _balances;\n    mapping(address => mapping(address => bool)) private _operatorApprovals;\n    string private _uri;\n    constructor(string memory uri_) {\n        _setURI(uri_);\n    }\n    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC165, IERC165) returns (bool) {\n        return\n            interfaceId == type(IERC1155).interfaceId ||\n            interfaceId == type(IERC1155MetadataURI).interfaceId ||\n            super.supportsInterface(interfaceId);\n    }\n    function uri(uint256) public view virtual override returns (string memory) {\n        return _uri;\n    }\n    function balanceOf(address account, uint256 id) public view virtual override returns (uint256) {\n        require(account != address(0), \"ERC1155: address zero is not a valid owner\");\n        return _balances[id][account];\n    }\n    function balanceOfBatch(address[] memory accounts, uint256[] memory ids)\n        public\n        view\n        virtual\n        override\n        returns (uint256[] memory)\n    {\n        require(accounts.length == ids.length, \"ERC1155: accounts and ids length mismatch\");\n\n        uint256[] memory batchBalances = new uint256[](accounts.length);\n\n        for (uint256 i = 0; i < accounts.length; ++i) {\n            batchBalances[i] = balanceOf(accounts[i], ids[i]);\n        }\n\n        return batchBalances;\n    }\n    function setApprovalForAll(address operator, bool approved) public virtual override {\n        _setApprovalForAll(_msgSender(), operator, approved);\n    }\n    function isApprovedForAll(address account, address operator) public view virtual override returns (bool) {\n        return _operatorApprovals[account][operator];\n    }\n    function safeTransferFrom(\n        address from,\n        address to,\n        uint256 id,\n        uint256 amount,\n        bytes memory data\n    ) public virtual override {\n        require(\n            from == _msgSender() || isApprovedForAll(from, _msgSender()),\n            \"ERC1155: caller is not token owner nor approved\"\n        );\n        _safeTransferFrom(from, to, id, amount, data);\n    }\n    function safeBatchTransferFrom(\n        address from,\n        address to,\n        uint256[] memory ids,\n        uint256[] memory amounts,\n        bytes memory data\n    ) public virtual override {\n        require(\n            from == _msgSender() || isApprovedForAll(from, _msgSender()),\n            \"ERC1155: caller is not token owner nor approved\"\n        );\n        _safeBatchTransferFrom(from, to, ids, amounts, data);\n    }\n    function _safeTransferFrom(\n        address from,\n        address to,\n        uint256 id,\n        uint256 amount,\n        bytes memory data\n    ) internal virtual {\n        require(to != address(0), \"ERC1155: transfer to the zero address\");\n\n        address operator = _msgSender();\n        uint256[] memory ids = _asSingletonArray(id);\n        uint256[] memory amounts = _asSingletonArray(amount);\n\n        _beforeTokenTransfer(operator, from, to, ids, amounts, data);\n\n        uint256 fromBalance = _balances[id][from];\n        require(fromBalance >= amount, \"ERC1155: insufficient balance for transfer\");\n        unchecked {\n            _balances[id][from] = fromBalance - amount;\n        }\n        _balances[id][to] += amount;\n\n        emit TransferSingle(operator, from, to, id, amount);\n\n        _afterTokenTransfer(operator, from, to, ids, amounts, data);\n\n        _doSafeTransferAcceptanceCheck(operator, from, to, id, amount, data);\n    }\n    function _safeBatchTransferFrom(\n        address from,\n        address to,\n        uint256[] memory ids,\n        uint256[] memory amounts,\n        bytes memory data\n    ) internal virtual {\n        require(ids.length == amounts.length, \"ERC1155: ids and amounts length mismatch\");\n        require(to != address(0), \"ERC1155: transfer to the zero address\");\n\n        address operator = _msgSender();\n\n        _beforeTokenTransfer(operator, from, to, ids, amounts, data);\n\n        for (uint256 i = 0; i < ids.length; ++i) {\n            uint256 id = ids[i];\n            uint256 amount = amounts[i];\n\n            uint256 fromBalance = _balances[id][from];\n            require(fromBalance >= amount, \"ERC1155: insufficient balance for transfer\");\n            unchecked {\n                _balances[id][from] = fromBalance - amount;\n            }\n            _balances[id][to] += amount;\n        }\n\n        emit TransferBatch(operator, from, to, ids, amounts);\n\n        _afterTokenTransfer(operator, from, to, ids, amounts, data);\n\n        _doSafeBatchTransferAcceptanceCheck(operator, from, to, ids, amounts, data);\n    }\n    function _setURI(string memory newuri) internal virtual {\n        _uri = newuri;\n    }\n    function _mint(\n        address to,\n        uint256 id,\n        uint256 amount,\n        bytes memory data\n    ) internal virtual {\n        require(to != address(0), \"ERC1155: mint to the zero address\");\n\n        address operator = _msgSender();\n        uint256[] memory ids = _asSingletonArray(id);\n        uint256[] memory amounts = _asSingletonArray(amount);\n\n        _beforeTokenTransfer(operator, address(0), to, ids, amounts, data);\n\n        _balances[id][to] += amount;\n        emit TransferSingle(operator, address(0), to, id, amount);\n\n        _afterTokenTransfer(operator, address(0), to, ids, amounts, data);\n\n        _doSafeTransferAcceptanceCheck(operator, address(0), to, id, amount, data);\n    }\n    function _mintBatch(\n        address to,\n        uint256[] memory ids,\n        uint256[] memory amounts,\n        bytes memory data\n    ) internal virtual {\n        require(to != address(0), \"ERC1155: mint to the zero address\");\n        require(ids.length == amounts.length, \"ERC1155: ids and amounts length mismatch\");\n\n        address operator = _msgSender();\n\n        _beforeTokenTransfer(operator, address(0), to, ids, amounts, data);\n\n        for (uint256 i = 0; i < ids.length; i++) {\n            _balances[ids[i]][to] += amounts[i];\n        }\n\n        emit TransferBatch(operator, address(0), to, ids, amounts);\n\n        _afterTokenTransfer(operator, address(0), to, ids, amounts, data);\n\n        _doSafeBatchTransferAcceptanceCheck(operator, address(0), to, ids, amounts, data);\n    }\n    function _burn(\n        address from,\n        uint256 id,\n        uint256 amount\n    ) internal virtual {\n        require(from != address(0), \"ERC1155: burn from the zero address\");\n\n        address operator = _msgSender();\n        uint256[] memory ids = _asSingletonArray(id);\n        uint256[] memory amounts = _asSingletonArray(amount);\n\n        _beforeTokenTransfer(operator, from, address(0), ids, amounts, \"\");\n\n        uint256 fromBalance = _balances[id][from];\n        require(fromBalance >= amount, \"ERC1155: burn amount exceeds balance\");\n        unchecked {\n            _balances[id][from] = fromBalance - amount;\n        }\n\n        emit TransferSingle(operator, from, address(0), id, amount);\n\n        _afterTokenTransfer(operator, from, address(0), ids, amounts, \"\");\n    }\n    function _burnBatch(\n        address from,\n        uint256[] memory ids,\n        uint256[] memory amounts\n    ) internal virtual {\n        require(from != address(0), \"ERC1155: burn from the zero address\");\n        require(ids.length == amounts.length, \"ERC1155: ids and amounts length mismatch\");\n\n        address operator = _msgSender();\n\n        _beforeTokenTransfer(operator, from, address(0), ids, amounts, \"\");\n\n        for (uint256 i = 0; i < ids.length; i++) {\n            uint256 id = ids[i];\n            uint256 amount = amounts[i];\n\n            uint256 fromBalance = _balances[id][from];\n            require(fromBalance >= amount, \"ERC1155: burn amount exceeds balance\");\n            unchecked {\n                _balances[id][from] = fromBalance - amount;\n            }\n        }\n\n        emit TransferBatch(operator, from, address(0), ids, amounts);\n\n        _afterTokenTransfer(operator, from, address(0), ids, amounts, \"\");\n    }\n    function _setApprovalForAll(\n        address owner,\n        address operator,\n        bool approved\n    ) internal virtual {\n        require(owner != operator, \"ERC1155: setting approval status for self\");\n        _operatorApprovals[owner][operator] = approved;\n        emit ApprovalForAll(owner, operator, approved);\n    }\n    function _beforeTokenTransfer(\n        address operator,\n        address from,\n        address to,\n        uint256[] memory ids,\n        uint256[] memory amounts,\n        bytes memory data\n    ) internal virtual {}\n    function _afterTokenTransfer(\n        address operator,\n        address from,\n        address to,\n        uint256[] memory ids,\n        uint256[] memory amounts,\n        bytes memory data\n    ) internal virtual {}\n\n    function _doSafeTransferAcceptanceCheck(\n        address operator,\n        address from,\n        address to,\n        uint256 id,\n        uint256 amount,\n        bytes memory data\n    ) private {\n        if (to.isContract()) {\n            try IERC1155Receiver(to).onERC1155Received(operator, from, id, amount, data) returns (bytes4 response) {\n                if (response != IERC1155Receiver.onERC1155Received.selector) {\n                    revert(\"ERC1155: ERC1155Receiver rejected tokens\");\n                }\n            } catch Error(string memory reason) {\n                revert(reason);\n            } catch {\n                revert(\"ERC1155: transfer to non ERC1155Receiver implementer\");\n            }\n        }\n    }\n\n    function _doSafeBatchTransferAcceptanceCheck(\n        address operator,\n        address from,\n        address to,\n        uint256[] memory ids,\n        uint256[] memory amounts,\n        bytes memory data\n    ) private {\n        if (to.isContract()) {\n            try IERC1155Receiver(to).onERC1155BatchReceived(operator, from, ids, amounts, data) returns (\n                bytes4 response\n            ) {\n                if (response != IERC1155Receiver.onERC1155BatchReceived.selector) {\n                    revert(\"ERC1155: ERC1155Receiver rejected tokens\");\n                }\n            } catch Error(string memory reason) {\n                revert(reason);\n            } catch {\n                revert(\"ERC1155: transfer to non ERC1155Receiver implementer\");\n            }\n        }\n    }\n\n    function _asSingletonArray(uint256 element) private pure returns (uint256[] memory) {\n        uint256[] memory array = new uint256[](1);\n        array[0] = element;\n\n        return array;\n    }\n}\n",
+        "formal_property": "rule burnBatchRevertCases(env e){\n    address from; uint256[] ids; uint256[] amounts;\n\n    require ids.length < 1000000000;\n    require amounts.length < 1000000000;\n    burnBatch@withrevert(e, from, ids, amounts);\n    assert (from == 0 || ids.length != amounts.length) => lastReverted, \"Should revert\";\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "burnBatchRevertCases",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "burn",
+                "burnBatch"
+            ],
+            "start_line": 637,
+            "end_line": 646,
+            "block_hash": "1279403ccb6456d673ec9c838975f6eb"
+        }
+    },
+    {
+        "id": "ERC1155_burnCorrectWork_27fff8f4",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC1155.sol",
+        "target_function": "balanceOf",
+        "text_chunk": "    function balanceOf(address account, uint256 id) public view virtual override returns (uint256) {\n        require(account != address(0), \"ERC1155: address zero is not a valid owner\");\n        return _balances[id][account];\n    }\n",
+        "formal_property": "rule burnCorrectWork(env e){\n    address from; uint256 id; uint256 amount;\n\n    uint256 otherBalanceBefore = balanceOf(from, id);\n    burn(e, from, id, amount);\n    uint256 otherBalanceAfter = balanceOf(from, id);\n    \n    assert otherBalanceBefore == otherBalanceAfter + amount, \"Something is wrong\";\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "burnCorrectWork",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "balanceOf",
+                "burn"
+            ],
+            "start_line": 651,
+            "end_line": 661,
+            "block_hash": "27fff8f45a851e68f1f8110d68f86fb0"
+        }
+    },
+    {
+        "id": "ERC1155_burnBatchCorrectWork_9f8c53ca",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC1155.sol",
+        "target_function": "balanceOf",
+        "text_chunk": "    function balanceOf(address account, uint256 id) public view virtual override returns (uint256) {\n        require(account != address(0), \"ERC1155: address zero is not a valid owner\");\n        return _balances[id][account];\n    }\n",
+        "formal_property": "rule burnBatchCorrectWork(env e){\n    address from;\n    uint256 id1; uint256 id2; uint256 id3; \n    uint256 amount1; uint256 amount2; uint256 amount3;\n    uint256[] ids; uint256[] amounts;\n\n    require ids.length == 3; \n    require id1 != id2 && id2 != id3 && id3 != id1;\n    require ids[0] == id1; require ids[1] == id2; require ids[2] == id3;\n    require amounts[0] == amount1; require amounts[1] == amount2; require amounts[2] == amount3;\n    uint256 otherBalanceBefore1 = balanceOf(from, id1);\n    uint256 otherBalanceBefore2 = balanceOf(from, id2);\n    uint256 otherBalanceBefore3 = balanceOf(from, id3);\n    burnBatch(e, from, ids, amounts);\n    uint256 otherBalanceAfter1 = balanceOf(from, id1);\n    uint256 otherBalanceAfter2 = balanceOf(from, id2);\n    uint256 otherBalanceAfter3 = balanceOf(from, id3);\n    \n    assert otherBalanceBefore1 == otherBalanceAfter1 + amount1\n            && otherBalanceBefore2 == otherBalanceAfter2 + amount2\n            && otherBalanceBefore3 == otherBalanceAfter3 + amount3\n            , \"Something is wrong\";\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "burnBatchCorrectWork",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "balanceOf",
+                "burn",
+                "burnBatch"
+            ],
+            "start_line": 666,
+            "end_line": 692,
+            "block_hash": "9f8c53cada982444d7e9e73cf4a18d7d"
+        }
+    },
+    {
+        "id": "ERC1155_cantBurnMoreSingle_f401bb12",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC1155.sol",
+        "target_function": "balanceOf",
+        "text_chunk": "    function balanceOf(address account, uint256 id) public view virtual override returns (uint256) {\n        require(account != address(0), \"ERC1155: address zero is not a valid owner\");\n        return _balances[id][account];\n    }\n",
+        "formal_property": "rule cantBurnMoreSingle(env e){\n    address from; uint256 id; uint256 amount;\n\n    require to_mathint(balanceOf(from, id) - amount) < 0;\n    burn@withrevert(e, from, id, amount);\n    \n    assert lastReverted, \"Don't be too greedy!\";\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "cantBurnMoreSingle",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "balanceOf",
+                "burn"
+            ],
+            "start_line": 697,
+            "end_line": 705,
+            "block_hash": "f401bb125f4a2b0e6641a137b9db063d"
+        }
+    },
+    {
+        "id": "ERC1155_cantBurnMoreBatch_e89793ed",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC1155.sol",
+        "target_function": "balanceOf",
+        "text_chunk": "    function balanceOf(address account, uint256 id) public view virtual override returns (uint256) {\n        require(account != address(0), \"ERC1155: address zero is not a valid owner\");\n        return _balances[id][account];\n    }\n",
+        "formal_property": "rule cantBurnMoreBatch(env e){\n    address from;\n    uint256 id1; uint256 id2; uint256 id3; \n    uint256 amount1; uint256 amount2; uint256 amount3;\n    uint256[] ids; uint256[] amounts;\n\n    require ids.length == 3; \n    require ids[0] == id1; require ids[1] == id2; require ids[2] == id3;\n    require amounts[0] == amount1; require amounts[1] == amount2; require amounts[2] == amount3;\n    require to_mathint(balanceOf(from, id1) - amount1) < 0 \n                || to_mathint(balanceOf(from, id2) - amount2) < 0 \n                || to_mathint(balanceOf(from, id3) - amount3) < 0 ;\n    burnBatch@withrevert(e, from, ids, amounts);\n    \n    assert lastReverted, \"Don't be too greedy!\";\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "cantBurnMoreBatch",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "balanceOf",
+                "burn",
+                "burnBatch"
+            ],
+            "start_line": 710,
+            "end_line": 728,
+            "block_hash": "e89793ed023d9f48f6f5bf3375216daa"
+        }
+    },
+    {
+        "id": "ERC1155_cantBurnOtherBalances_871424cd",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC1155.sol",
+        "target_function": "balanceOf",
+        "text_chunk": "    function balanceOf(address account, uint256 id) public view virtual override returns (uint256) {\n        require(account != address(0), \"ERC1155: address zero is not a valid owner\");\n        return _balances[id][account];\n    }\n",
+        "formal_property": "rule cantBurnOtherBalances(env e){\n    address from; uint256 id; uint256 amount;\n    address other;\n\n    uint256 otherBalanceBefore = balanceOf(other, id);\n    burn(e, from, id, amount);\n    uint256 otherBalanceAfter = balanceOf(other, id);\n    \n    assert other != from => otherBalanceBefore == otherBalanceAfter, \"I like to see your money disappearing\";\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "cantBurnOtherBalances",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "balanceOf",
+                "burn"
+            ],
+            "start_line": 733,
+            "end_line": 744,
+            "block_hash": "871424cdaf0c9f25bf25bcb8de4ab6a7"
+        }
+    },
+    {
+        "id": "ERC1155_cantBurnBatchOtherBalances_a664d6fe",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC1155.sol",
+        "target_function": "balanceOf",
+        "text_chunk": "    function balanceOf(address account, uint256 id) public view virtual override returns (uint256) {\n        require(account != address(0), \"ERC1155: address zero is not a valid owner\");\n        return _balances[id][account];\n    }\n",
+        "formal_property": "rule cantBurnBatchOtherBalances(env e){\n    address from;\n    uint256 id1; uint256 id2; uint256 id3; \n    uint256 amount1; uint256 amount2; uint256 amount3;\n    uint256[] ids; uint256[] amounts;\n    address other;\n\n    uint256 otherBalanceBefore1 = balanceOf(other, id1);\n    uint256 otherBalanceBefore2 = balanceOf(other, id2);\n    uint256 otherBalanceBefore3 = balanceOf(other, id3);\n    burnBatch(e, from, ids, amounts);\n    uint256 otherBalanceAfter1 = balanceOf(other, id1);\n    uint256 otherBalanceAfter2 = balanceOf(other, id2);\n    uint256 otherBalanceAfter3 = balanceOf(other, id3);\n    \n    assert other != from => (otherBalanceBefore1 == otherBalanceAfter1 \n                                && otherBalanceBefore2 == otherBalanceAfter2 \n                                && otherBalanceBefore3 == otherBalanceAfter3)\n                                , \"I like to see your money disappearing\";\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "cantBurnBatchOtherBalances",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "balanceOf",
+                "burn",
+                "burnBatch"
+            ],
+            "start_line": 749,
+            "end_line": 770,
+            "block_hash": "a664d6fec84d9218667a4ac5f6f299eb"
+        }
+    },
+    {
+        "id": "ERC1155_singleTokenSafeTransferFromSafeBatchTransferFromEquivalence_a6c739b0",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC1155.sol",
+        "target_function": "balanceOf/safeBatchTransferFrom/safeTransferFrom",
+        "text_chunk": "    function balanceOf(address account, uint256 id) public view virtual override returns (uint256) {\n        require(account != address(0), \"ERC1155: address zero is not a valid owner\");\n        return _balances[id][account];\n    }\n\n\n    function safeBatchTransferFrom(\n        address from,\n        address to,\n        uint256[] memory ids,\n        uint256[] memory amounts,\n        bytes memory data\n    ) public virtual override {\n        require(\n            from == _msgSender() || isApprovedForAll(from, _msgSender()),\n            \"ERC1155: caller is not token owner nor approved\"\n        );\n        _safeBatchTransferFrom(from, to, ids, amounts, data);\n    }\n\n\n    function safeTransferFrom(\n        address from,\n        address to,\n        uint256 id,\n        uint256 amount,\n        bytes memory data\n    ) public virtual override {\n        require(\n            from == _msgSender() || isApprovedForAll(from, _msgSender()),\n            \"ERC1155: caller is not token owner nor approved\"\n        );\n        _safeTransferFrom(from, to, id, amount, data);\n    }\n",
+        "formal_property": "rule singleTokenSafeTransferFromSafeBatchTransferFromEquivalence {\n    storage beforeTransfer = lastStorage;\n    env e;\n\n    address holder; address recipient;\n    uint256 token; uint256 transferAmount; bytes data;\n    uint256[] tokens; uint256[] transferAmounts;\n    mathint holderStartingBalance = balanceOf(holder, token);\n    mathint recipientStartingBalance = balanceOf(recipient, token);\n    require tokens.length == 1; require transferAmounts.length == 1;\n    require tokens[0] == token; require transferAmounts[0] == transferAmount;\n    // transferring via safeTransferFrom\n    safeTransferFrom(e, holder, recipient, token, transferAmount, data) at beforeTransfer;\n    mathint holderSafeTransferFromBalanceChange = holderStartingBalance - balanceOf(holder, token);\n    mathint recipientSafeTransferFromBalanceChange = balanceOf(recipient, token) - recipientStartingBalance;\n    // transferring via safeBatchTransferFrom\n    safeBatchTransferFrom(e, holder, recipient, tokens, transferAmounts, data) at beforeTransfer;\n    mathint holderSafeBatchTransferFromBalanceChange = holderStartingBalance - balanceOf(holder, token);\n    mathint recipientSafeBatchTransferFromBalanceChange = balanceOf(recipient, token) - recipientStartingBalance;\n    assert holderSafeTransferFromBalanceChange == holderSafeBatchTransferFromBalanceChange\n        && recipientSafeTransferFromBalanceChange == recipientSafeBatchTransferFromBalanceChange, \n        \"Transferring a single token via safeTransferFrom or safeBatchTransferFrom must be equivalent\";\n}   \n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "singleTokenSafeTransferFromSafeBatchTransferFromEquivalence",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "balanceOf",
+                "safeTransferFrom",
+                "safeBatchTransferFrom"
+            ],
+            "start_line": 779,
+            "end_line": 806,
+            "block_hash": "a6c739b0bab38cc5c86f9c0ddf600dd3"
+        }
+    },
+    {
+        "id": "ERC1155_multipleTokenSafeTransferFromSafeBatchTransferFromEquivalence_35799dd1",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC1155.sol",
+        "target_function": "balanceOf/safeBatchTransferFrom/safeTransferFrom",
+        "text_chunk": "    function balanceOf(address account, uint256 id) public view virtual override returns (uint256) {\n        require(account != address(0), \"ERC1155: address zero is not a valid owner\");\n        return _balances[id][account];\n    }\n\n\n    function safeBatchTransferFrom(\n        address from,\n        address to,\n        uint256[] memory ids,\n        uint256[] memory amounts,\n        bytes memory data\n    ) public virtual override {\n        require(\n            from == _msgSender() || isApprovedForAll(from, _msgSender()),\n            \"ERC1155: caller is not token owner nor approved\"\n        );\n        _safeBatchTransferFrom(from, to, ids, amounts, data);\n    }\n\n\n    function safeTransferFrom(\n        address from,\n        address to,\n        uint256 id,\n        uint256 amount,\n        bytes memory data\n    ) public virtual override {\n        require(\n            from == _msgSender() || isApprovedForAll(from, _msgSender()),\n            \"ERC1155: caller is not token owner nor approved\"\n        );\n        _safeTransferFrom(from, to, id, amount, data);\n    }\n",
+        "formal_property": "rule multipleTokenSafeTransferFromSafeBatchTransferFromEquivalence {\n    storage beforeTransfers = lastStorage;\n    env e;\n\n    address holder; address recipient; bytes data;\n    uint256 tokenA; uint256 tokenB; uint256 tokenC;\n    uint256 transferAmountA; uint256 transferAmountB; uint256 transferAmountC;\n    uint256[] tokens; uint256[] transferAmounts;\n    mathint holderStartingBalanceA = balanceOf(holder, tokenA);\n    mathint holderStartingBalanceB = balanceOf(holder, tokenB);\n    mathint holderStartingBalanceC = balanceOf(holder, tokenC);\n    mathint recipientStartingBalanceA = balanceOf(recipient, tokenA);\n    mathint recipientStartingBalanceB = balanceOf(recipient, tokenB);\n    mathint recipientStartingBalanceC = balanceOf(recipient, tokenC);\n    require tokens.length == 3; require transferAmounts.length == 3;\n    require tokens[0] == tokenA; require transferAmounts[0] == transferAmountA;\n    require tokens[1] == tokenB; require transferAmounts[1] == transferAmountB;\n    require tokens[2] == tokenC; require transferAmounts[2] == transferAmountC;\n    // transferring via safeTransferFrom\n    safeTransferFrom(e, holder, recipient, tokenA, transferAmountA, data) at beforeTransfers;\n    safeTransferFrom(e, holder, recipient, tokenB, transferAmountB, data);\n    safeTransferFrom(e, holder, recipient, tokenC, transferAmountC, data);\n    mathint holderSafeTransferFromBalanceChangeA = holderStartingBalanceA - balanceOf(holder, tokenA);\n    mathint holderSafeTransferFromBalanceChangeB = holderStartingBalanceB - balanceOf(holder, tokenB);\n    mathint holderSafeTransferFromBalanceChangeC = holderStartingBalanceC - balanceOf(holder, tokenC);\n    mathint recipientSafeTransferFromBalanceChangeA = balanceOf(recipient, tokenA) - recipientStartingBalanceA;\n    mathint recipientSafeTransferFromBalanceChangeB = balanceOf(recipient, tokenB) - recipientStartingBalanceB;\n    mathint recipientSafeTransferFromBalanceChangeC = balanceOf(recipient, tokenC) - recipientStartingBalanceC;\n    // transferring via safeBatchTransferFrom\n    safeBatchTransferFrom(e, holder, recipient, tokens, transferAmounts, data) at beforeTransfers;\n    mathint holderSafeBatchTransferFromBalanceChangeA = holderStartingBalanceA - balanceOf(holder, tokenA);\n    mathint holderSafeBatchTransferFromBalanceChangeB = holderStartingBalanceB - balanceOf(holder, tokenB);\n    mathint holderSafeBatchTransferFromBalanceChangeC = holderStartingBalanceC - balanceOf(holder, tokenC);\n    mathint recipientSafeBatchTransferFromBalanceChangeA = balanceOf(recipient, tokenA) - recipientStartingBalanceA;\n    mathint recipientSafeBatchTransferFromBalanceChangeB = balanceOf(recipient, tokenB) - recipientStartingBalanceB;\n    mathint recipientSafeBatchTransferFromBalanceChangeC = balanceOf(recipient, tokenC) - recipientStartingBalanceC;\n    assert holderSafeTransferFromBalanceChangeA == holderSafeBatchTransferFromBalanceChangeA\n        && holderSafeTransferFromBalanceChangeB == holderSafeBatchTransferFromBalanceChangeB\n        && holderSafeTransferFromBalanceChangeC == holderSafeBatchTransferFromBalanceChangeC\n        && recipientSafeTransferFromBalanceChangeA == recipientSafeBatchTransferFromBalanceChangeA\n        && recipientSafeTransferFromBalanceChangeB == recipientSafeBatchTransferFromBalanceChangeB\n        && recipientSafeTransferFromBalanceChangeC == recipientSafeBatchTransferFromBalanceChangeC, \n        \"Transferring multiple tokens via safeTransferFrom or safeBatchTransferFrom must be equivalent\";\n}\n",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "multipleTokenSafeTransferFromSafeBatchTransferFromEquivalence",
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "balanceOf",
+                "safeTransferFrom",
+                "safeBatchTransferFrom"
+            ],
+            "start_line": 810,
+            "end_line": 858,
+            "block_hash": "35799dd12f2a738eae0102ad9e3ee0ec"
+        }
+    },
+    {
+        "id": "ERC1155_transfersHaveSameLengthInputArrays_6400142b",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "ERC1155.sol",
+        "target_function": "safeBatchTransferFrom",
+        "text_chunk": "    function safeBatchTransferFrom(\n        address from,\n        address to,\n        uint256[] memory ids,\n        uint256[] memory amounts,\n        bytes memory data\n    ) public virtual override {\n        require(\n            from == _msgSender() || isApprovedForAll(from, _msgSender()),\n            \"ERC1155: caller is not token owner nor approved\"\n        );\n        _safeBatchTransferFrom(from, to, ids, amounts, data);\n    }\n",
+        "formal_property": "rule transfersHaveSameLengthInputArrays {\n    env e;\n\n    address recipient; bytes data;\n    uint256[] tokens; uint256[] transferAmounts;\n    uint max_int = 0xffffffffffffffffffffffffffffffff;\n    require tokens.length >= 0 && tokens.length <= max_int;\n    require transferAmounts.length >= 0 && transferAmounts.length <= max_int;\n    safeBatchTransferFrom(e, _, recipient, tokens, transferAmounts, data);\n    uint256 tokensLength = tokens.length;\n    uint256 transferAmountsLength = transferAmounts.length;\n    assert tokens.length == transferAmounts.length, \n        \"If transfer methods do not revert, the input arrays must be the same length\";\n}\n",
         "nl_summary": "",
         "metadata": {
             "rule_name": "transfersHaveSameLengthInputArrays",
-            "rule_type": "RULE"
+            "rule_type": "rule",
+            "modifies_state": false,
+            "methods_in_block": [
+                "safeBatchTransferFrom"
+            ],
+            "start_line": 861,
+            "end_line": 878,
+            "block_hash": "6400142b9faebdf7283c8bdf3d4d0a01"
         }
     }
 ]

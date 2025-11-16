@@ -256,7 +256,7 @@ def determine_target_function(prop_body, all_solidity_functions, methods_in_bloc
 def create_index_records(solidity_functions, formal_properties, full_sol_code, source_contract_name, state_vars):
     records = []
 
-    #full contraact data
+    #full contraact data for sol code
     records.append({
         "id":f"{source_contract_name.replace('.sol','')}_contract_context", 
         "chunk_type":"CONTRACT_CONTEXT",
@@ -271,7 +271,7 @@ def create_index_records(solidity_functions, formal_properties, full_sol_code, s
             "is_standard":"UNKNOWN"}
     })
 
-    #property specific data
+    #now store property specific data for formal properties
     for prop in formal_properties:
         target_func_str = determine_target_function("".join(prop['block_content']), solidity_functions, prop['methods_in_block'])
         solcode_chunk = ""
@@ -319,7 +319,7 @@ def create_index_records(solidity_functions, formal_properties, full_sol_code, s
                 }
         })
 
-    return records
+    return records #in records we store the sol code contract index rec and property's index data as well, specifix for each proeprty
 
 def main():
     if len(sys.argv) != 3:
@@ -327,24 +327,27 @@ def main():
         print("eg: python parser.py ContractsAndProperties/Auction.sol ContractsAndProperties/Auction.spec", file=sys.stderr)
         sys.exit(1)
     
+    #paths to all files
     sol_path = sys.argv[1]
     spec_path = sys.argv[2]
 
     #path thingy
     source_contract_name = os.path.basename(sol_path)
     base_name = os.path.splitext(source_contract_name)[0]
-    output_index_name = f"{base_name}_index.json"
+    output_index_name = f"{base_name}_index.json" #would be saved by this name in DataIndex/raw_index
     output_path = os.path.join(OUTPUT_DIR, output_index_name)
 
+    #reading the whole code
     full_sol_code = read_file(sol_path)
     full_spec_code = read_file(spec_path)
 
+    #if code doesnt even exist, fallback
     if not full_sol_code or not full_spec_code:
         print("failed to read input files")
         sys.exit(1)
 
-    solidity_functions = parse_solidity_functions(sol_path)
-    formal_properties = find_code_blocks(spec_path)
+    solidity_functions = parse_solidity_functions(sol_path) #extract all functions from the solidity code given
+    formal_properties = find_code_blocks(spec_path) #extract all properties (rules,invariants) from the CVL spec file
 
     #expand proeprties with cross ref
     update_blocks_with_cross_reference(formal_properties)

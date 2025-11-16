@@ -64,18 +64,20 @@ async function readPrompts(path_to_prompt) {
 }
 
 //core LLM augmentation function
-async function CVL_generation(retrieved_templates, user_plain_english_intent, N) {
+async function CVL_generation(retrieved_templates, user_plain_english_intent, new_contract_code) {
     const CVL_generation_contents = await readPrompts(CVL_GENERATION_CONTENTS_PATH);
     const CVL_generation_systemInstruction = await readPrompts(CVL_GENERATION_SYSTEM_INSTRUCTION_PATH);
 
     const context_templates_string = retrieved_templates.map((template,index) => {
-        return `--- TEMPLATE ${index + 1} (${template.rule_type} for ${template.target_function}) ---\n${template.formal_property}\n`;
+        //use formal property directly as it holds the CVL code.
+        return `\n--- TEMPLATE ${index + 1} (${template.rule_type} for ${template.target_function}) ---\n${template.formal_property}\n`;
     })
-    .join('\n');
+    .join('');
 
     const final_contents = CVL_generation_contents
+        .replace('{new_contract_code}', new_contract_code)
         .replace('{user_plain_english_intent}', user_plain_english_intent)
-        .replace('{context_templates}', context_templates_string);
+        .replace('{retrieved_formal_properties}', context_templates_string);
 
     const response = await ai.models.generateContent({
         model: "gemini-2.5-flash",
@@ -107,6 +109,7 @@ async function main() {
     //sending the contract to python for vectorization and retrieving N most common contracts and mapped properties
     const python_process = spawnSync('python', ['scripts/rag_agent.py', path_to_contract], { encoding: 'utf-8' });
     const python_output = python_process.stdout.trim();
+
     let retrieved_templates_result;
     try {
         retrieved_templates_result = JSON.parse(python_output)
@@ -116,11 +119,14 @@ async function main() {
         process.exit(1);
     }
 
+    //processing the received metadata
     let retrieved_templates = retrieved_templates_result.metadatas[0];
-    console.log(retrieved_templates);
+    //console.log(retrieved_templates);
 
     intent = "If passed empty token and burn amount arrays, burnBatch must not change token balances or address permissions.";
-    const final_CVL_code = await CVL_generation(retrieved_templates, intent, 3);
+
+    const final_CVL_code = await CVL_generation(retrieved_templates, intent, contract_data);
+    console.log(GREEN + BOLD+"\n --- generated CVL propty ---" + RESET)
     console.log(final_CVL_code);
 }
 
