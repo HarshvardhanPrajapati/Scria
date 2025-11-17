@@ -1,34 +1,28 @@
 // SPDX-License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.1 (token/ERC1155/extensions/ERC1155Burnable.sol)
-
 pragma solidity ^0.8.0;
 
-import "../ERC1155.sol";
+contract SimpleERC20 {
+    string public name = "SimpleToken";
+    string public symbol = "SIM";
+    uint8 public decimals = 18;
+    uint256 public totalSupply;
 
-abstract contract ERC1155Burnable is ERC1155 {
-    function burn(
-        address account,
-        uint256 id,
-        uint256 value
-    ) public virtual {
-        require(
-            account == _msgSender() || isApprovedForAll(account, _msgSender()),
-            "ERC1155: caller is not token owner nor approved"
-        );
+    mapping(address => uint256) public balanceOf;
+    mapping(address => mapping(address => uint256)) public allowance;
 
-        _burn(account, id, value);
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+
+    constructor(uint256 initialSupply) {
+        balanceOf[msg.sender] = initialSupply;
+        totalSupply = initialSupply;
     }
 
-    function burnBatch(
-        address account,
-        uint256[] memory ids,
-        uint256[] memory values
-    ) public virtual {
-        require(
-            account == _msgSender() || isApprovedForAll(account, _msgSender()),
-            "ERC1155: caller is not token owner nor approved"
-        );
-
-        _burnBatch(account, ids, values);
+    function transfer(address to, uint256 value) public returns (bool success) {
+        require(balanceOf[msg.sender] >= value, "Insufficient balance.");
+        balanceOf[msg.sender] -= value;
+        balanceOf[to] += value;
+        emit Transfer(msg.sender, to, value);
+        return true;
     }
 }

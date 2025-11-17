@@ -64,30 +64,93 @@ async function readPrompts(path_to_prompt) {
 }
 
 //core LLM augmentation function
-async function CVL_generation(retrieved_templates, user_plain_english_intent, new_contract_code) {
+async function CVL_generation(retrieved_templates, user_plain_english_intent, N) {
     const CVL_generation_contents = await readPrompts(CVL_GENERATION_CONTENTS_PATH);
     const CVL_generation_systemInstruction = await readPrompts(CVL_GENERATION_SYSTEM_INSTRUCTION_PATH);
+    
+    const contextTemplatesString = retrieved_templates.map((template, index) => {
+        return `--- TEMPLATE ${index + 1} (${template.rule_type} for ${template.target_function}) ---\n${template.formal_property}\n`;
+    }).join('\n');
 
-    const context_templates_string = retrieved_templates.map((template,index) => {
-        //use formal property directly as it holds the CVL code.
-        return `\n--- TEMPLATE ${index + 1} (${template.rule_type} for ${template.target_function}) ---\n${template.formal_property}\n`;
-    })
-    .join('');
-
-    const final_contents = CVL_generation_contents
-        .replace('{new_contract_code}', new_contract_code)
+    const finalContents = CVL_generation_contents
         .replace('{user_plain_english_intent}', user_plain_english_intent)
-        .replace('{retrieved_formal_properties}', context_templates_string);
+        .replace('{context_templates}', contextTemplatesString);
 
     const response = await ai.models.generateContent({
         model: "gemini-2.5-flash",
         config: {
             systemInstruction: CVL_generation_systemInstruction,
         },
-        contents: final_contents
+        contents: finalContents
     });
     return response.text;
 }
+
+//function to extract solidity identifiers
+function extractSolidityIdentifiers(contractCode) {
+    const regex = /\b[a-zA-Z_][a-zA-Z0-9_]*\b/g;
+    const identifiers = new Set();
+    let match;
+    while ((match = regex.exec(contractCode)) !== null) {
+        identifiers.add(match[0]);
+    }
+    return identifiers;
+}
+
+//to validate the returned CVL property from LLM call
+function validateCVLProperty(propertyText, contractIdentifiers) {
+    const ruleMatches = propertyText.match(/rule\s+\w+\s*\{/g) || [];
+    if (ruleMatches.length !== 1) {
+        return { valid: false, error: "Output must contain exactly one 'rule' block." };
+    }
+
+    const openBraces = (propertyText.match(/{/g) || []).length;
+    const closeBraces = (propertyText.match(/}/g) || []).length;
+    if (openBraces !== closeBraces) {
+        return { valid: false, error: "Unbalanced braces in the generated property." };
+    }
+
+    const tokenRegex = /\b[a-zA-Z_][a-zA-Z0-9_]*\b/g;
+    const tokens = propertyText.match(tokenRegex) || [];
+    const allowedKeywords = new Set(['rule', 'true', 'false', 'require', 'assert', 'invariant', 'pre', 'post']);
+
+    for (const token of tokens) {
+        if (!contractIdentifiers.has(token) && !allowedKeywords.has(token)) {
+            return { valid: false, error: `Reference to undefined identifier '${token}'.` };
+        }
+    }
+
+    return { valid: true };
+}
+
+//regenerate the property tht has error, for maxm 3 times
+async function generatePropertyWithRevision(retrievedTemplates, userIntent, contractCode, maxRetries = 10) {
+    const contractIdentifiers = extractSolidityIdentifiers(contractCode);
+    let lastError = "";
+    let lastOutput = "";
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        let promptIntent = userIntent;
+        if (lastError) {
+            promptIntent += `\n\nThe previously generated property was:\n${lastOutput}\n\nPlease fix the following errors from this output:\n${lastError}`;
+        }
+
+        lastOutput = await CVL_generation(retrievedTemplates, promptIntent, 1);
+
+        const validationResult = validateCVLProperty(lastOutput, contractIdentifiers);
+        if (validationResult.valid) {
+            console.log(GREEN + BOLD + `Property generation successful at attempt ${attempt}.` + RESET);
+            return lastOutput;
+        } else {
+            lastError = validationResult.error;
+            console.log(RED + `Validation failed at attempt ${attempt}: ${lastError}\nRetrying...` + RESET);
+        }
+    }
+
+    throw new Error(`Failed to generate valid property after ${maxRetries} attempts.\nLast Output:\n${lastOutput}`);
+}
+
+
 
 async function main() {
     //loading contract data and paths
@@ -115,19 +178,24 @@ async function main() {
         retrieved_templates_result = JSON.parse(python_output)
     } catch(e) {
         console.error(RED + "\nFailed to parse RAG results from Python. Received non-JSON output." + RESET);
-        console.error(RED + `Raw Python Output: ${python_output.substring(0, 100)}...` + RESET);
         process.exit(1);
     }
 
     //processing the received metadata
-    let retrieved_templates = retrieved_templates_result.metadatas[0];
+    let retrieved_templates = retrieved_templates_result.metadatas ? retrieved_templates_result.metadatas[0] : [];
+    if(!retrieved_templates || retrieved_templates.length===0){
+        console.error(RED + "no templates retrieved from RAG"+RESET)
+    }
     //console.log(retrieved_templates);
 
-    intent = "If passed empty token and burn amount arrays, burnBatch must not change token balances or address permissions.";
+    intent = "The transfer function must never allow sending tokens more than the sender's current balance.";
 
-    const final_CVL_code = await CVL_generation(retrieved_templates, intent, contract_data);
+    const final_CVL_code = await generatePropertyWithRevision(retrieved_templates, intent, contract_data);
     console.log(GREEN + BOLD+"\n --- generated CVL propty ---" + RESET)
     console.log(final_CVL_code);
 }
 
-main().catch(console.error);
+main().catch(e => {
+    console.error(e);
+    process.exit(1);
+})
