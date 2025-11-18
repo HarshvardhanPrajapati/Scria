@@ -1,0 +1,22 @@
+[
+    {
+        "id": "demo_contract_context",
+        "chunk_type": "CONTRACT_CONTEXT",
+        "source_contract": "demo.sol",
+        "target_function": "ALL",
+        "text_chunk": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.0;\n\ncontract SimpleERC20 {\n    string public name = \"SimpleToken\";\n    string public symbol = \"SIM\";\n    uint8 public decimals = 18;\n    uint256 public totalSupply;\n\n    mapping(address => uint256) public balanceOf;\n    mapping(address => mapping(address => uint256)) public allowance;\n\n    event Transfer(address indexed from, address indexed to, uint256 value);\n    event Approval(address indexed owner, address indexed spender, uint256 value);\n\n    constructor(uint256 initialSupply) {\n        balanceOf[msg.sender] = initialSupply;\n        totalSupply = initialSupply;\n    }\n\n    function transfer(address to, uint256 value) public returns (bool success) {\n        require(balanceOf[msg.sender] >= value, \"Insufficient balance.\");\n        balanceOf[msg.sender] -= value;\n        balanceOf[to] += value;\n        emit Transfer(msg.sender, to, value);\n        return true;\n    }\n}\n",
+        "formal_property": null,
+        "nl_summary": "",
+        "metadata": {
+            "function_list": [
+                "transfer"
+            ],
+            "state_variables": [
+                "totalSupply",
+                "allowance",
+                "balanceOf"
+            ],
+            "is_standard": "UNKNOWN"
+        }
+    }
+]

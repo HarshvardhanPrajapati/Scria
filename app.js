@@ -64,24 +64,30 @@ async function readPrompts(path_to_prompt) {
 }
 
 //core LLM augmentation function
-async function CVL_generation(retrieved_templates, user_plain_english_intent, N) {
+async function CVL_generation(retrieved_templates, user_plain_english_intent, contract_code, function_list, state_vars) {
     const CVL_generation_contents = await readPrompts(CVL_GENERATION_CONTENTS_PATH);
     const CVL_generation_systemInstruction = await readPrompts(CVL_GENERATION_SYSTEM_INSTRUCTION_PATH);
-    
+
     const contextTemplatesString = retrieved_templates.map((template, index) => {
         return `--- TEMPLATE ${index + 1} (${template.rule_type} for ${template.target_function}) ---\n${template.formal_property}\n`;
     }).join('\n');
 
-    const finalContents = CVL_generation_contents
-        .replace('{user_plain_english_intent}', user_plain_english_intent)
-        .replace('{context_templates}', contextTemplatesString);
+    const symbolsContext = `
+Functions in contract: ${function_list.join(', ')}\n
+State variables: ${state_vars.join(', ')}\n\n
+Please use only these identifiers in your CVL property generation.\n
+`;
+
+    const fullPrompt = CVL_generation_contents.replace('{user_plain_english_intent}', user_plain_english_intent)
+        .replace('{context_templates}', contextTemplatesString)
+        + symbolsContext;
 
     const response = await ai.models.generateContent({
         model: "gemini-2.5-flash",
         config: {
             systemInstruction: CVL_generation_systemInstruction,
         },
-        contents: finalContents
+        contents: fullPrompt
     });
     return response.text;
 }
@@ -124,7 +130,7 @@ function validateCVLProperty(propertyText, contractIdentifiers) {
 }
 
 //regenerate the property tht has error, for maxm 3 times
-async function generatePropertyWithRevision(retrievedTemplates, userIntent, contractCode, maxRetries = 10) {
+async function generatePropertyWithRevision(retrievedTemplates, userIntent, contractCode, functionList, stateVars, maxRetries = 3) {
     const contractIdentifiers = extractSolidityIdentifiers(contractCode);
     let lastError = "";
     let lastOutput = "";
@@ -135,7 +141,7 @@ async function generatePropertyWithRevision(retrievedTemplates, userIntent, cont
             promptIntent += `\n\nThe previously generated property was:\n${lastOutput}\n\nPlease fix the following errors from this output:\n${lastError}`;
         }
 
-        lastOutput = await CVL_generation(retrievedTemplates, promptIntent, 1);
+        lastOutput = await CVL_generation(retrievedTemplates, userIntent, contractCode, functionList, stateVars);
 
         const validationResult = validateCVLProperty(lastOutput, contractIdentifiers);
         if (validationResult.valid) {
@@ -150,13 +156,52 @@ async function generatePropertyWithRevision(retrievedTemplates, userIntent, cont
     throw new Error(`Failed to generate valid property after ${maxRetries} attempts.\nLast Output:\n${lastOutput}`);
 }
 
+//function to run the parser.py for the contract n property, will create the json data with function names list, state vars etc info tot the DataIndex/raw_data
+async function runParserPy(solidityPath, specPath) {
+    const resolvedPythonPath = path.join(__dirname, 'scripts', 'parser.py');
+    const result = spawnSync('python', [resolvedPythonPath, solidityPath, specPath], { encoding: 'utf-8' });
 
+    if (result.error) {
+        throw result.error;
+    }
+
+if (result.status !== 0) {
+    console.error("parser.py exited with non-zero status code:", result.status);
+    if (result.stdout) {
+        console.error("parser.py stdout:\n", result.stdout);
+    }
+    if (result.stderr) {
+        console.error("parser.py stderr:\n", result.stderr);
+    }
+    if (result.error) {
+        console.error("Error object:", result.error);
+    }
+    throw new Error(`parser.py failed with exit code ${result.status}`);
+}
+
+    const outputPath =  path.join(__dirname, 'DataIndex', 'raw_index', path.basename(solidityPath, '.sol') + '_index.json');
+    if (!fs.existsSync(outputPath)) {
+        throw new Error("Parser output not found at " + outputPath);
+    }
+
+    const jsonData = JSON.parse(fs.readFileSync(outputPath, 'utf-8'));
+    return jsonData;
+}
+
+//to retrieve the imp items from teh parser.py output
+async function extractSymbolFromParserOutput(jsonData) {
+    const contractContext = jsonData.find(rec => rec.chunk_type === "CONTRACT_CONTEXT");
+    const functionList = contractContext?.metadata?.function_list || [];
+    const stateVars = contractContext?.metadata?.state_variables || [];
+    return { functionList, stateVars };
+}
 
 async function main() {
     //loading contract data and paths
     const path_to_contract = path.join(__dirname, 'src', property);
     const contract_data = fs.readFileSync(path_to_contract, "utf-8");
     const base_file_name = path.parse(property).name;
+    const path_to_spec = path.join(__dirname, 'src', base_file_name + '.spec');
 
     //wont allow contracts with more than 100 lines of code
     const lines = contract_data.split('\n');
@@ -169,6 +214,18 @@ async function main() {
     //moving ahead, we have loaded the contract
     console.log(GREEN + BOLD + "Contract loaded successfully" + RESET);
 
+    //running parser.py to get the indexed data
+    let parser_output;
+    try{
+        parser_output = await runParserPy(path_to_contract, path_to_spec);
+    } catch(err) {
+        console.error(RED + `error running parser.py: ${err.message}` + RESET);
+        process.exit(1);
+    }
+
+    //need to extract the functions and state variables from the user input contract, using parser.py
+    const {functionList: function_list, stateVars: state_vars} = await extractSymbolFromParserOutput(parser_output);
+
     //sending the contract to python for vectorization and retrieving N most common contracts and mapped properties
     const python_process = spawnSync('python', ['scripts/rag_agent.py', path_to_contract], { encoding: 'utf-8' });
     const python_output = python_process.stdout.trim();
@@ -176,22 +233,22 @@ async function main() {
     let retrieved_templates_result;
     try {
         retrieved_templates_result = JSON.parse(python_output)
-    } catch(e) {
+    } catch (e) {
         console.error(RED + "\nFailed to parse RAG results from Python. Received non-JSON output." + RESET);
         process.exit(1);
     }
 
     //processing the received metadata
     let retrieved_templates = retrieved_templates_result.metadatas ? retrieved_templates_result.metadatas[0] : [];
-    if(!retrieved_templates || retrieved_templates.length===0){
-        console.error(RED + "no templates retrieved from RAG"+RESET)
+    if (!retrieved_templates || retrieved_templates.length === 0) {
+        console.error(RED + "no templates retrieved from RAG" + RESET)
     }
     //console.log(retrieved_templates);
 
     intent = "The transfer function must never allow sending tokens more than the sender's current balance.";
 
-    const final_CVL_code = await generatePropertyWithRevision(retrieved_templates, intent, contract_data);
-    console.log(GREEN + BOLD+"\n --- generated CVL propty ---" + RESET)
+    const final_CVL_code = await generatePropertyWithRevision(retrieved_templates, intent, contract_data, function_list, state_vars);
+    console.log(GREEN + BOLD + "\n --- generated CVL propty ---" + RESET)
     console.log(final_CVL_code);
 }
 
