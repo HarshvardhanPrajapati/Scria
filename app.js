@@ -105,10 +105,15 @@ function extractSolidityIdentifiers(contractCode) {
 
 //to validate the returned CVL property from LLM call
 function validateCVLProperty(propertyText, contractIdentifiers) {
-    const ruleMatches = propertyText.match(/rule\s+\w+\s*\{/g) || [];
+    //const ruleMatches = propertyText.match(/rule\s+\w+\s*\{/g) || [];
+    const ruleMatches = propertyText.match(/rule\s+\w+(\([^)]*\))?\s*\{/g) || [];
+
     if (ruleMatches.length !== 1) {
         return { valid: false, error: "Output must contain exactly one 'rule' block." };
     }
+
+    const ruleNameMatch = propertyText.match(/rule\s+(\w+)\s*\{/);
+    const ruleName = ruleNameMatch ? ruleNameMatch[1] : null;
 
     const openBraces = (propertyText.match(/{/g) || []).length;
     const closeBraces = (propertyText.match(/}/g) || []).length;
@@ -116,16 +121,51 @@ function validateCVLProperty(propertyText, contractIdentifiers) {
         return { valid: false, error: "Unbalanced braces in the generated property." };
     }
 
-    const tokenRegex = /\b[a-zA-Z_][a-zA-Z0-9_]*\b/g;
-    const tokens = propertyText.match(tokenRegex) || [];
-    const allowedKeywords = new Set(['rule', 'true', 'false', 'require', 'assert', 'invariant', 'pre', 'post']);
-
-    for (const token of tokens) {
-        if (!contractIdentifiers.has(token) && !allowedKeywords.has(token)) {
-            return { valid: false, error: `Reference to undefined identifier '${token}'.` };
+    let declared_locals = new Set(); //all locally declared variables etc so to keep track of them when validating
+    
+    //to identify the parameteres passed with the fucntion, as these wont be declared in function body, if not extracted from the parameter list, they would throw unidentified variable error
+    const param_match = propertyText.match(/rule\s+\w+\s*\(([^)]*)\)/);
+    if (param_match && param_match[1].trim().length > 0){
+        const params = param_match[1].split(',').map(s=> s.trim());
+        for (const param of params) {
+            const parts = param.split(/\s+/);
+            const var_name = parts[parts.length - 1];
+            declared_locals.add(var_name);
         }
     }
 
+    //all lcoally declared vars
+    const localDeclRegex = /\b(?:bool|uint256|uint|int|address|string|bytes|env|method)\s+([a-zA-Z_][a-zA-Z0-9_]*)\b/g;
+    let match;
+    while((match = localDeclRegex.exec(propertyText)) !== null){
+        declared_locals.add(match[1]);
+    }
+
+    const token_regex = /\b[a-zA-Z_][a-zA-Z0-9_]*\b/g;
+    const tokens = propertyText.match(token_regex) || [];
+
+    const allowedKeywords = new Set([
+        'rule', 'true', 'false', 'require', 'assert', 'invariant', 'pre', 'post',
+        'env', 'e', 'method', 'call', 'returns', 'revert', 'old', 'if', 'else',
+        'for', 'while', 'break', 'continue', 'return', 'bool', 'uint256', 'uint',
+        'int', 'address', 'string', 'bytes', 'env', 'function'
+    ]);
+
+    //check tokens
+    for (const token of tokens) {
+        //skip rule name from validation
+        if(
+            token === ruleName || 
+            declared_locals.has(token) ||
+            allowedKeywords.has(token)
+        ) {
+            continue;
+        }
+
+        if(!contractIdentifiers.has(token)){
+            return { valid: false, error: `Reference to undefined identifier '${token}'.` };
+        }
+    }
     return { valid: true };
 }
 
@@ -225,7 +265,8 @@ async function main() {
 
     //need to extract the functions and state variables from the user input contract, using parser.py
     const {functionList: function_list, stateVars: state_vars} = await extractSymbolFromParserOutput(parser_output);
-
+    
+    console.log(function_list);
     //sending the contract to python for vectorization and retrieving N most common contracts and mapped properties
     const python_process = spawnSync('python', ['scripts/rag_agent.py', path_to_contract], { encoding: 'utf-8' });
     const python_output = python_process.stdout.trim();
