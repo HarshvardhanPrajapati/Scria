@@ -266,7 +266,7 @@ async function main() {
     //need to extract the functions and state variables from the user input contract, using parser.py
     const {functionList: function_list, stateVars: state_vars} = await extractSymbolFromParserOutput(parser_output);
     
-    console.log(function_list);
+    //console.log(function_list)
     //sending the contract to python for vectorization and retrieving N most common contracts and mapped properties
     const python_process = spawnSync('python', ['scripts/rag_agent.py', path_to_contract], { encoding: 'utf-8' });
     const python_output = python_process.stdout.trim();

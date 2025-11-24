@@ -77,7 +77,7 @@ def find_methods(file_path):
 #parsing them CVL properties, creating the properties record
 def find_code_blocks(path_to_spec_file):
     patterns = {
-        "invariant": re.compile(r"invariant\s+(\w+)[\s\S]*?\{", re.DOTALL),
+        "invariant": re.compile(r"invariant\s+(\w+)[\s\S]*?\(", re.DOTALL),
         "rule": re.compile(r"rule\s+(\w+)[\s\S]*?\{", re.DOTALL)
     }
     
@@ -127,7 +127,7 @@ def find_code_blocks(path_to_spec_file):
     
     return properties
 
-#function to extract all state vars in solidity code, imp to monitor the state of contract
+#function to extract all state vars in solidity code, imp to monitor the state of contract. LEXER
 def extract_state_variables(path_to_sol_file):
     with open(path_to_sol_file, "r", encoding='utf-8') as f:
         contract_lines = f.readlines()
@@ -161,21 +161,38 @@ def check_state_var_assignment(function_body: str, state_vars: Set[str]):
             
     return False
 
-#CVL methods having function calls (that changes states) might need human review, as these methods are changing states
+#CVL methods having function calls (that changes states) might need human review, as these methods are changing states  SYNTACTIC ANALYZE
 def has_function_calls(function_body):
     if "view" in str(function_body).lower():
         return False
     
     #extract content between {...}
     match = re.search(r'\{(.*)\}', str(function_body), re.DOTALL)
+    start_index = match.end()
+
     if not match:
         return False
     
-    inner_body = match.group(1)
+    function_lines = function_body.split('\n')
+    
+    open_brackets = 1
+    end_line_index = match.end()
+
+    while end_line_index<len(function_body) and open_brackets>0: #match brackets, so to avoid nested brackets inside the function
+        if function_body[end_line_index] == '{':
+            open_brackets+=1
+        elif function_body[end_line_index] == '}':
+            open_brackets-=1
+        end_line_index+=1
+
+    if open_brackets == 0 :
+        verified_inner_body = function_body[start_index: end_line_index-1]
+    else:
+        return False
 
     #re to find method calls
     method_call_pattern = re.compile(r'\.\s*(\w+)\s*\(')
-    method_calls = method_call_pattern.findall(inner_body)
+    method_calls = method_call_pattern.findall(verified_inner_body)
 
     if not method_calls: #no method called..
         return False
@@ -369,7 +386,7 @@ def main():
     with open(output_path,'w') as f:
         json.dump(index_records, f, indent=4, ensure_ascii=False)
 
-    print(f"Succesfully generated and saved at {output_path}")
+    print(f"succesfully generated and saved at {output_path}")
 
 if __name__ == "__main__":
     main()
