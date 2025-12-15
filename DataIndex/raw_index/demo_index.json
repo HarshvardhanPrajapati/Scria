@@ -12,11 +12,29 @@
                 "transfer"
             ],
             "state_variables": [
-                "totalSupply",
                 "allowance",
-                "balanceOf"
+                "balanceOf",
+                "totalSupply"
             ],
             "is_standard": "UNKNOWN"
+        }
+    },
+    {
+        "id": "demo_transfer_cannot_exceed_sender_balance_3b2db16d",
+        "chunk_type": "FUNCTION_RULE",
+        "source_contract": "demo.sol",
+        "target_function": "transfer",
+        "text_chunk": "    function transfer(address to, uint256 value) public returns (bool success) {\n        require(balanceOf[msg.sender] >= value, \"Insufficient balance.\");\n        balanceOf[msg.sender] -= value;\n        balanceOf[to] += value;\n        emit Transfer(msg.sender, to, value);\n        return true;\n    }\n",
+        "formal_property": "rule transfer_cannot_exceed_sender_balance {\n    method transfer(address recipient, uint256 amount) returns (bool success);\n\n    env e;\n    uint256 senderBalance_pre = balanceOf[e.msg.sender];\n    call transfer(e, e.msg.sender, recipient, amount);\n    assert (success => senderBalance_pre >= amount);\n}",
+        "nl_summary": "",
+        "metadata": {
+            "rule_name": "transfer_cannot_exceed_sender_balance",
+            "rule_type": "rule",
+            "modifies_state": true,
+            "methods_in_block": [],
+            "start_line": 5,
+            "end_line": 15,
+            "block_hash": "3b2db16d9c90fc25b0f7c9d09ae0241f"
         }
     }
 ]

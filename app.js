@@ -238,10 +238,10 @@ async function extractSymbolFromParserOutput(jsonData) {
 
 async function main() {
     //loading contract data and paths
-    const path_to_contract = path.join(__dirname, 'src', property);
+    const path_to_contract = path.resolve(property);
     const contract_data = fs.readFileSync(path_to_contract, "utf-8");
     const base_file_name = path.parse(property).name;
-    const path_to_spec = path.join(__dirname, 'src', base_file_name + '.spec');
+    const path_to_spec = path.join(path.dirname(path_to_contract), base_file_name + '.spec');
 
     //wont allow contracts with more than 100 lines of code
     const lines = contract_data.split('\n');
@@ -284,7 +284,7 @@ async function main() {
     if (!retrieved_templates || retrieved_templates.length === 0) {
         console.error(RED + "no templates retrieved from RAG" + RESET)
     }
-    //console.log(retrieved_templates);
+    console.log(retrieved_templates);
 
     intent = "The transfer function must never allow sending tokens more than the sender's current balance.";
 

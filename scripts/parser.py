@@ -47,7 +47,7 @@ def parse_solidity_functions(path_to_sol_file):
         functions[function_name] = (function_name, start_line, end_line, function_body)
     
     if not functions:
-        print("no function found in {path_to_sol_file}")
+        print(f"no function found in {path_to_sol_file}")
     
     return functions
 
@@ -74,10 +74,10 @@ def find_methods(file_path):
 
     return new_methods
 
-#parsing them CVL properties, creating the properties record
+#parsing them cvl properties, creating the properties record
 def find_code_blocks(path_to_spec_file):
     patterns = {
-        "invariant": re.compile(r"invariant\s+(\w+)[\s\S]*?\(", re.DOTALL),
+        "invariant": re.compile(r"invariant\s+(\w+)[\s\S]*?\{", re.DOTALL),
         "rule": re.compile(r"rule\s+(\w+)[\s\S]*?\{", re.DOTALL)
     }
     
@@ -127,7 +127,7 @@ def find_code_blocks(path_to_spec_file):
     
     return properties
 
-#function to extract all state vars in solidity code, imp to monitor the state of contract. LEXER
+#function to extract all state vars in solidity code, imp to monitor the state of contract. lexer
 def extract_state_variables(path_to_sol_file):
     with open(path_to_sol_file, "r", encoding='utf-8') as f:
         contract_lines = f.readlines()
@@ -161,7 +161,7 @@ def check_state_var_assignment(function_body: str, state_vars: Set[str]):
             
     return False
 
-#CVL methods having function calls (that changes states) might need human review, as these methods are changing states  SYNTACTIC ANALYZE
+#cvl methods having function calls (that changes states) might need human review, as these methods are changing states  syntactic analyze
 def has_function_calls(function_body):
     if "view" in str(function_body).lower():
         return False
@@ -197,7 +197,7 @@ def has_function_calls(function_body):
     if not method_calls: #no method called..
         return False
     
-    #check if they are read fnc like 'balaceOf' or 'totalsupply'
+    #check if they are read fnc like 'balaceof' or 'totalsupply'
     allowed_methods = {'balanceOf', 'totalSupply'}
     for method_name in method_calls:
         if method_name not in allowed_methods:
@@ -246,7 +246,7 @@ def generate_block_hash(block:dict):
     block_content_string = str(block)
     return hashlib.md5(block_content_string.encode()).hexdigest()
 
-#function to link CVL property to its target function, VERY IMP, returns set of target functions linked to that property
+#function to link cvl property to its target function, very imp, returns set of target functions linked to that property
 def determine_target_function(prop_body, all_solidity_functions, methods_in_block):
     target_fncs = set()
     body_lower = prop_body.lower()
@@ -263,13 +263,13 @@ def determine_target_function(prop_body, all_solidity_functions, methods_in_bloc
         if f"{func_lower}(" in body_lower or f"{func_lower}@" in body_lower:
             target_fncs.add(func_name)
         
-    #make invariant global if no specifix fnc is called, cuz invariant holds true for any function
+    #make invariant global if no specific fnc is called, cuz invariant holds true for any function
     if not target_fncs and "invariant" in body_lower:
         return "ALL"
     
     return "/".join(sorted(list(target_fncs))) or "UNKNOWN"
 
-#actually creating the JSONs that we wil be storing in our vector database, also tracking state vars
+#actually creating the jsons that we wil be storing in our vector database, also tracking state vars
 def create_index_records(solidity_functions, formal_properties, full_sol_code, source_contract_name, state_vars):
     records = []
 
@@ -336,7 +336,7 @@ def create_index_records(solidity_functions, formal_properties, full_sol_code, s
                 }
         })
 
-    return records #in records we store the sol code contract index rec and property's index data as well, specifix for each proeprty
+    return records #in records we store the sol code contract index rec and property's index data as well, specific for each property
 
 def main():
     if len(sys.argv) != 3:
@@ -364,7 +364,7 @@ def main():
         sys.exit(1)
 
     solidity_functions = parse_solidity_functions(sol_path) #extract all functions from the solidity code given
-    formal_properties = find_code_blocks(spec_path) #extract all properties (rules,invariants) from the CVL spec file
+    formal_properties = find_code_blocks(spec_path) #extract all properties (rules,invariants) from the cvl spec file
 
     #expand proeprties with cross ref
     update_blocks_with_cross_reference(formal_properties)
